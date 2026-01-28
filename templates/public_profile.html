@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Профил на {{ user.first_name or user.username }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm p-4 text-center border-0">
+                <div class="bg-primary text-white rounded-circle d-inline-block p-4 mb-3 mx-auto" style="width: 80px; height: 80px; font-size: 24px;">
+                    {{ user.first_name[0].upper() if user.first_name else user.username[0].upper() }}
+                </div>
+                <h3 class="fw-bold">{{ user.first_name or user.username }}</h3>
+                <p class="text-muted">📍 {{ user.address or "Локацията не е посочена" }}</p>
+                <hr>
+                <p class="text-start"><strong>Bio:</strong> {{ user.bio or "Няма описание." }}</p>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <h4 class="fw-bold mb-4">Предлагани услуги</h4>
+            <div class="row">
+                {% for lesson in lessons %}
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-body">
+                            <h5 class="fw-bold text-primary">{{ lesson.subject }}</h5>
+                            <p class="small text-muted">{{ lesson.category }}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">{{ "%.2f"|format(lesson.price) }} лв.</span>
+                                <a href="/" class="btn btn-outline-primary btn-sm">Детайли</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-5 p-4 bg-white shadow-sm rounded">
+    <h4 class="fw-bold mb-3">Остави ревю за {{ user.first_name or user.username }}</h4>
+    <form action="/submit-review/{{ user.id }}" method="post">
+        <div class="mb-3">
+            <label class="form-label">Оценка (задължително):</label>
+            <select name="rating" class="form-select" required>
+                <option value="">Избери звезди...</option>
+                <option value="5">⭐⭐⭐⭐⭐ (Отличен)</option>
+                <option value="4">⭐⭐⭐⭐ (Много добър)</option>
+                <option value="3">⭐⭐⭐ (Добър)</option>
+                <option value="2">⭐⭐ (Среден)</option>
+                <option value="1">⭐ (Слаб)</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Коментар (по избор):</label>
+            <textarea name="comment" class="form-control" rows="3" placeholder="Напишете вашето мнение тук..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Изпрати ревю</button>
+    </form>
+</div>
+            <div class="mt-5">
+    <h4 class="fw-bold mb-4">Ревюта от ученици</h4>
+    {% if reviews %}
+        {% for review in reviews %}
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <h6 class="fw-bold mb-1">👤 Ученик #{{ review.user_id }}</h6>
+                    <span class="text-warning">
+                        {% for i in range(review.rating) %}⭐{% endfor %}
+                    </span>
+                </div>
+                <p class="mb-0 mt-2 text-muted italic">"{{ review.comment or 'Без коментар' }}"</p>
+                <small class="text-muted d-block mt-2" style="font-size: 0.7rem;">
+                    Публикувано на: {{ review.created_at.strftime('%d.%m.%Y') }}
+                </small>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted">Все още няма ревюта за този преподавател.</p>
+    {% endif %}
+</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

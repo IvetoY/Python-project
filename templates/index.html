@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Услуги Наблизо - Начало</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .service-card { transition: transform 0.2s; border: none; }
+        .service-card:hover { transform: scale(1.02); }
+        .price-text { color: #0d6efd; font-weight: bold; font-size: 1.5rem; line-height: 1; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">📍 Услуги Наблизо</a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Начало</a></li>
+                    {% if user_id %}
+                        <li class="nav-item"><a class="nav-link" href="/profile">Моят Профил</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-outline-danger btn-sm text-white ms-2" href="/logout">Изход</a></li>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="/login">Вход</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/register">Регистрация</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row mb-4 text-center">
+            <h1 class="fw-bold">Намери най-добрите частни уроци</h1>
+            <p class="text-muted">Бързо и лесно свързване с квалифицирани преподаватели.</p>
+        </div>
+        <div class="container mt-3">
+    {% if request.query_params.get('message') == 'added' %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        ✨ Урокът е добавен в любими! 
+        <a href="/profile#favorites" class="fw-bold text-decoration-none ms-2">Виж всички любими тук →</a>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+</div>
+        <div class="row justify-content-center mb-5">
+            <div class="col-md-8">
+                <div class="card p-4 shadow-sm border-0">
+                    <form action="/search" method="get" class="row g-2">
+                        <div class="col-md-5"><input type="text" name="name" class="form-control" placeholder="Предмет"></div>
+                        <div class="col-md-4"><input type="text" name="category" class="form-control" placeholder="Категория"></div>
+                        <div class="col-md-3"><input type="text" name="city" class="form-control" placeholder="Локация"></div>
+                        <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Търси</button></div>
+                    
+                    </form>
+                    {% if lessons %}
+    {% for lesson in lessons %}
+        {% endfor %}
+{% else %}
+    <div class="col-12 text-center py-5">
+        <h3 class="text-muted">Няма намерени уроци за тези критерии. 📍</h3>
+    </div>
+{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            {% for lesson in lessons %}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm service-card p-0 position-relative">
+                    
+                    {% if user_id and user_role == 'client' %}
+<div class="position-absolute top-0 end-0 p-3" style="z-index: 10;">
+    <form action="/favorites" method="post">
+        <input type="hidden" name="user_id" value="{{ user_id }}"> 
+        <input type="hidden" name="lesson_id" value="{{ lesson.id }}"> 
+        <button type="submit" class="btn btn-link p-0 text-danger shadow-none" title="Добави в любими">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-heart" viewBox="0 0 16 16">
+                <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/>
+            </svg>
+        </button>
+    </form>
+</div>
+{% endif %}
+
+                    <div class="card-body d-flex flex-column p-4">
+                        <h5 class="card-title fw-bold">{{ lesson.subject }}</h5>
+                        <h6 class="card-subtitle mb-3 text-muted">{{ lesson.category }}</h6>
+                        <a href="/public-profile/{{ lesson.teacher_id }}" class="text-decoration-none fw-bold text-primary">
+        {{ lesson.teacher_name }}
+    </a>
+                        <div class="mt-auto pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-end">
+                                <div>
+                                    <div class="price-text">{{ "%.2f"|format(lesson.price) }} лв.</div>
+                                    <small class="text-muted">({{ "%.2f"|format(lesson.price / eur_rate) }} €)</small>
+                                </div>
+
+                                <div style="min-width: 160px;">
+                                    {% if user_id %}
+                                        {% if user_id == lesson.teacher_id %}
+                                            <span class="badge bg-info text-dark w-100 p-2">Ваш урок</span>
+                                        {% else %}
+                                            <form action="/book-lesson/{{ lesson.id }}" method="post" class="text-end">
+                                                <label class="small text-muted mb-1" style="font-size: 0.7rem;">Изберете час:</label>
+                                                <input type="datetime-local" id="datePicker-{{ lesson.id }}" name="appointment_time" class="form-control form-control-sm mb-2" required>
+                                                <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm">Запази час</button>
+                                                <script>
+                                                    (function() {
+                                                        const now = new Date();
+                                                        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                                                        document.getElementById('datePicker-{{ lesson.id }}').min = now.toISOString().slice(0, 16);
+                                                    })();
+                                                </script>
+                                            </form>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="text-end">
+                                            <p class="text-muted mb-1" style="font-size: 0.7rem;">Влезте за резервация</p>
+                                            <a href="/login" class="btn btn-outline-primary btn-sm w-100 rounded-pill">Вход</a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <footer class="text-center mt-5 py-4 text-muted border-top bg-white">
+        © 2026 Проект: Посредник за услуги - Iva
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    if (window.location.search.includes('message=added')) {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: newUrl }, '', newUrl);
+    }
+</script>
+</body>
+</html>

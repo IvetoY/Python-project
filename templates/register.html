@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="bg">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Регистрация - Услуги Наблизо</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">📍 Услуги Наблизо</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0 p-4">
+                    <h2 class="text-center mb-4 text-primary">Създай акаунт</h2>
+                    <form action="/register-web" method="post">
+    <div class="mb-3">
+        <label class="form-label">Име</label>
+        <input type="text" name="first_name" class="form-control" placeholder="Ивелина">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Потребителско име</label>
+        <input type="text" name="username" class="form-control" placeholder="vanko88" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Имейл</label>
+        <input type="email" name="email" class="form-control" placeholder="mail@example.com" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Парола</label>
+        <input type="password" name="password" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Телефон</label>
+        <input type="text" name="phone" class="form-control" placeholder="0888...">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Регистрирам се като:</label>
+        <select name="role" id="roleSelect" class="form-select" onchange="toggleTutorFields()">
+            <option value="client">Клиент (искам да уча)</option>
+            <option value="tutor">Учител (искам да преподавам)</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" id="addressLabel">Град / Населено място</label>
+        <input type="text" name="address" id="addressInput" class="form-control" placeholder="Напр. София, Пловдив...">
+    </div>
+
+    <div id="tutorFields" style="display: none;">
+        <div class="mb-3">
+            <label class="form-label">Биография / Опит:</label>
+            <textarea name="bio" class="form-control" rows="3" placeholder="Разкажете малко за себе си..."></textarea>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100">Регистрирай ме</button>
+</form>
+
+<script>
+function toggleTutorFields() {
+    const role = document.getElementById('roleSelect').value;
+    const fields = document.getElementById('tutorFields');
+    const addressInput = document.getElementById('addressInput');
+    const addressLabel = document.getElementById('addressLabel');
+
+    if (role === 'tutor') {
+        fields.style.display = 'block';
+        addressInput.setAttribute('required', '');
+        addressLabel.innerHTML = 'Град / Населено място <span class="text-danger">*</span>';
+        addressInput.placeholder = "Град (Задължително за учители)";
+    } else {
+        fields.style.display = 'none';
+        addressInput.removeAttribute('required');
+        addressLabel.innerHTML = 'Град / Населено място (по избор)';
+        addressInput.placeholder = "Напр. София, Пловдив...";
+    }
+}
+</script>
+</div>
+
+<div id="tutorFields" style="display: none;">
+    <div class="mb-3">
+        <label class="form-label">Биография / Опит:</label>
+        <textarea name="bio" class="form-control" rows="3" placeholder="Разкажете малко за себе си..."></textarea>
+    </div>
+</div>
+
+<script>
+function toggleTutorFields() {
+    const role = document.getElementById('roleSelect').value;
+    const fields = document.getElementById('tutorFields');
+    fields.style.display = (role === 'tutor') ? 'block' : 'none';
+}
+</script>
+    
+</form>
+                    <div class="mt-3 text-center">
+                        <a href="/login" class="text-primary text-decoration-none small">Вече имаш профил? Влез тук</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
