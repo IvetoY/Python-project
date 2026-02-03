@@ -282,26 +282,26 @@ def book_lesson(
         return HTMLResponse(content="<script>alert('Моля, влезте в профила си!'); window.location.href='/login';</script>")
 
     user_id = int(current_user_id)
+    client = db.query(models.User).filter(models.User.id == user_id).first()
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     
-    if lesson.teacher_id == user_id:
-        return HTMLResponse(content="<script>alert('Не можете да резервирате собствен урок!'); window.history.back();</script>")
-    selected_time = datetime.fromisoformat(appointment_time)
-    
-    if selected_time < datetime.now():
-        return HTMLResponse(content="<script>alert('Не можете да избирате дата в миналото!'); window.history.back();</script>")
-    
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Урокът не е намерен")
+
     new_booking = models.Booking(
         client_id=user_id,
         lesson_id=lesson_id,
         appointment_time=appointment_time,
         status="Заявен"
     )
-    
     db.add(new_booking)
+    
+    msg = f"Имате нова резервация за {lesson.subject} от {client.username}!"
+    db.add(models.Notification(user_id=lesson.teacher_id, message=msg))
+    
     db.commit()
     
-    return HTMLResponse(content="<script>alert('Успешна резервация за " + appointment_time.replace("T", " ") + "!'); window.location.href='/profile';</script>")
+    return HTMLResponse(content=f"<script>alert('Успешна резервация!'); window.location.href='/profile';</script>")
 
 @app.post("/confirm-booking/{booking_id}")
 def confirm_booking(booking_id: int, db: Session = Depends(get_db)):
@@ -338,7 +338,8 @@ def update_booking(booking_id: int, new_status: str, db: Session = Depends(get_d
     return HTMLResponse(content="<script>window.location.href='/profile';</script>")
 
 @app.get("/public-profile/{user_id}", response_class=HTMLResponse)
-def public_profile(request: Request, user_id: int, db: Session = Depends(get_db)):
+def public_profile(request: Request, user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)):
+    print(f"DEBUG: Отварям профил на потребител с ID: {user_id}")
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
         return HTMLResponse(content="<script>alert('Потребителят не е намерен!'); window.history.back();</script>")
@@ -351,7 +352,10 @@ def public_profile(request: Request, user_id: int, db: Session = Depends(get_db)
         "request": request,
         "user": user,
         "lessons": teacher_lessons,
-        "reviews": reviews
+        "reviews": reviews,
+        "eur_rate": 1.95583,
+        "is_logged_in": True if current_user_id else False,
+        "current_user_id": int(current_user_id) if current_user_id else None
     })
 
 @app.post("/delete-notification/{notif_id}")
@@ -466,4 +470,9 @@ def submit_review(
     db.add(new_review)
     db.commit()
     
-    return HTMLResponse(content=f"<script>alert('Благодарим за вашата оценка!'); window.location.href='/public-profile/{teacher_id}';</script>")
+    return HTMLResponse(content=f"""
+        <script>
+            alert('Благодарим за вашата оценка!');
+            window.location.href = '/public-profile/{teacher_id}';
+        </script>
+    """)

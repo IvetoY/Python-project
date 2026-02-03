@@ -19,6 +19,9 @@ class User(Base):
     bio = Column(String, nullable=True)
     is_verified = Column(Boolean, default=False)
 
+    lessons = relationship("Lesson", back_populates="teacher")
+    reviews = relationship("Review", foreign_keys="[Review.teacher_id]")
+
 class Lesson(Base):
     __tablename__ = "lessons"
     id = Column(Integer, primary_key=True, index=True)
@@ -29,6 +32,8 @@ class Lesson(Base):
     teacher_name = Column(String)
     latitude = Column(Float)
     longitude = Column(Float)
+
+    teacher = relationship("User", back_populates="lessons")
     
 
 class Booking(Base):
@@ -53,7 +58,7 @@ class Review(Base):
 
     teacher = relationship("User", foreign_keys=[teacher_id])
     reviewer = relationship("User", foreign_keys=[user_id])
-
+    
 
 class Favorite(Base):
     __tablename__ = "favorites"
