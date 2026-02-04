@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from fastapi.responses import RedirectResponse
 
 from . import models, schemas
 from .database import engine, get_db
@@ -178,9 +179,9 @@ def register_web(
     db.commit()
     db.refresh(new_user)
 
-    res = HTMLResponse(content="<script>alert('Успешна регистрация!'); window.location.href='/profile';</script>")
-    res.set_cookie(key="current_user_id", value=str(new_user.id), httponly=True)
-    return res
+    response = RedirectResponse(url="/profile", status_code=303)
+    response.set_cookie(key="current_user_id", value=str(new_user.id), httponly=True)
+    return response
 
 @app.get("/", response_class=HTMLResponse)
 def home_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)):
@@ -216,14 +217,14 @@ def login_web(
     if not user or not verify_password(password, user.password):
         return HTMLResponse(content="<script>alert('Грешен имейл или парола!'); window.location.href='/login';</script>")
     
-    response = HTMLResponse(content=f"<script>alert('Добре дошли, {user.username}!'); window.location.href='/';</script>")
+    response = RedirectResponse(url="/", status_code=303)
     response.set_cookie(key="current_user_id", value=str(user.id), httponly=True)
     return response
 
 @app.get("/profile", response_class=HTMLResponse)
 def profile_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)):
     if not current_user_id:
-        return HTMLResponse(content="<script>window.location.href='/login';</script>")
+        return RedirectResponse(url='/login', status_code=303)
     
     user_id = int(current_user_id)
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -238,16 +239,40 @@ def profile_page(request: Request, db: Session = Depends(get_db), current_user_i
         my_lesson_ids = [l.id for l in my_lessons]
         bookings = db.query(models.Booking).filter(models.Booking.lesson_id.in_(my_lesson_ids)).all()
     
+    now = datetime.now()
+    upcoming_bookings = []
+    history_bookings = []
+
+    for b in bookings:
+        if isinstance(b.appointment_time, str):
+            try:
+                b.appointment_time = datetime.fromisoformat(b.appointment_time.replace(' ', 'T'))
+            except:
+                b.appointment_time = now
+
+        if b.appointment_time < now:
+            if b.status != "Отказан":
+                b.status = "Проведен"
+            history_bookings.append(b)
+        else:
+            upcoming_bookings.append(b)
+                
     return templates.TemplateResponse("profile.html", {
         "request": request, 
-        "user": user, 
-        "bookings": bookings,
+        "user": user,
+        "bookings": upcoming_bookings,
+        "history_bookings": history_bookings,
         "notifications": notifications,
-        "favorite_lessons": favorite_lessons
+        "favorite_lessons": favorite_lessons,
+        "now": now
     })
 
 @app.get("/edit-profile", response_class=HTMLResponse)
-def edit_profile_page(request: Request, user_id: int = 1, db: Session = Depends(get_db)):
+def edit_profile_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)):
+    if not current_user_id:
+        return RedirectResponse(url='/login', status_code=303)
+    
+    user_id = int(current_user_id)
     user = db.query(models.User).filter(models.User.id == user_id).first()
     return templates.TemplateResponse("edit_profile.html", {"request": request, "user": user})
 
@@ -257,10 +282,15 @@ def update_profile(
     phone: str = Form(None),
     address: str = Form(None),
     bio: str = Form(None),
-    user_id: int = 1,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user_id: str = Cookie(None)
 ):
+    if not current_user_id:
+        return RedirectResponse(url='/login', status_code=303)
+
+    user_id = int(current_user_id)
     user = db.query(models.User).filter(models.User.id == user_id).first()
+    
     if user:
         user.first_name = first_name
         user.phone = phone
@@ -269,7 +299,7 @@ def update_profile(
             user.bio = bio
         db.commit()
     
-    return HTMLResponse(content="<script>alert('Профилът е обновен!'); window.location.href='/profile';</script>")
+    return RedirectResponse(url="/profile", status_code=303)
 
 @app.post("/book-lesson/{lesson_id}")
 def book_lesson(
@@ -287,7 +317,7 @@ def book_lesson(
     
     if not lesson:
         raise HTTPException(status_code=404, detail="Урокът не е намерен")
-
+    
     new_booking = models.Booking(
         client_id=user_id,
         lesson_id=lesson_id,
@@ -301,7 +331,7 @@ def book_lesson(
     
     db.commit()
     
-    return HTMLResponse(content=f"<script>alert('Успешна резервация!'); window.location.href='/profile';</script>")
+    return RedirectResponse(url="/profile", status_code=303)
 
 @app.post("/confirm-booking/{booking_id}")
 def confirm_booking(booking_id: int, db: Session = Depends(get_db)):
@@ -309,12 +339,11 @@ def confirm_booking(booking_id: int, db: Session = Depends(get_db)):
     if booking:
         booking.status = "Потвърден"
         db.commit()
-    return HTMLResponse(content="<script>alert('Резервацията е потвърдена!'); window.location.href='/profile';</script>")
-
+    return RedirectResponse(url="/profile", status_code=303)
 
 @app.get("/logout")
 def logout(response: Response):
-    response = HTMLResponse(content="<script>alert('Излязохте успешно!'); window.location.href='/';</script>")
+    response = RedirectResponse(url="/", status_code=303)
     response.delete_cookie("current_user_id")
     return response
 
@@ -335,7 +364,7 @@ def update_booking(booking_id: int, new_status: str, db: Session = Depends(get_d
         
         booking.status = new_status
         db.commit()
-    return HTMLResponse(content="<script>window.location.href='/profile';</script>")
+    return RedirectResponse(url="/profile", status_code=303)
 
 @app.get("/public-profile/{user_id}", response_class=HTMLResponse)
 def public_profile(request: Request, user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)):
@@ -400,7 +429,7 @@ def create_lesson(
     )
     db.add(new_lesson)
     db.commit()
-    return HTMLResponse(content="<script>alert('Урокът е добавен успешно!'); window.location.href='/profile';</script>")
+    return RedirectResponse(url="/profile", status_code=303)
 
 @app.post("/favorites")
 def add_to_favorites(
@@ -418,12 +447,7 @@ def add_to_favorites(
         db.add(new_fav)
         db.commit()
     
-    return HTMLResponse(content="""
-        <script>
-            alert('Урокът е добавен в любими!');
-            window.location.href = '/?message=added';
-        </script>
-    """)
+    return RedirectResponse(url="/?message=added", status_code=303)
 
 @app.post("/remove-favorite/{lesson_id}")
 def remove_favorite(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)):
@@ -468,11 +492,41 @@ def submit_review(
         comment=comment
     )
     db.add(new_review)
+
+    notification_msg = f"Ученикът {user.username} ви остави оценка {rating} ⭐!"
+    db.add(models.Notification(user_id=teacher_id, message=notification_msg))
+
+    db.commit()
+    return RedirectResponse(url=f"/public-profile/{teacher_id}", status_code=303)
+
+@app.post("/cancel-booking/{booking_id}")
+def cancel_booking(
+    booking_id: int, 
+    db: Session = Depends(get_db), 
+    current_user_id: str = Cookie(None)
+):
+    if not current_user_id:
+        return RedirectResponse(url="/login", status_code=303)
+    
+    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    if not booking:
+        return RedirectResponse(url="/profile", status_code=303)
+
+    user_id = int(current_user_id)
+    teacher_id = booking.lesson.teacher_id
+    client_id = booking.client_id
+
+    if user_id == teacher_id:
+        receiver_id = client_id
+        msg = f"Преподавателят отмени вашия час за {booking.lesson.subject}."
+    else:
+        receiver_id = teacher_id
+        msg = f"Ученикът отмени часа си за {booking.lesson.subject}."
+
+    new_notif = models.Notification(user_id=receiver_id, message=msg)
+    db.add(new_notif)
+    
+    db.delete(booking)
     db.commit()
     
-    return HTMLResponse(content=f"""
-        <script>
-            alert('Благодарим за вашата оценка!');
-            window.location.href = '/public-profile/{teacher_id}';
-        </script>
-    """)
+    return RedirectResponse(url="/profile", status_code=303)

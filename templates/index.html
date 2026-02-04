@@ -51,6 +51,7 @@
             <h1 class="fw-bold">Намери най-добрите частни уроци</h1>
             <p class="text-muted">Бързо и лесно свързване с квалифицирани преподаватели.</p>
         </div>
+
         <div class="container mt-3">
             {% if request.query_params.get('message') == 'added' %}
             <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
@@ -60,118 +61,114 @@
             </div>
             {% endif %}
         </div>
+
         <div class="row justify-content-center mb-5">
             <div class="col-md-11">
-                <div class="card p-4 shadow-sm border-0">
+                <div class="card p-4 shadow-sm border-0 rounded-4">
                     <form action="/search" method="get" class="row g-2">
-                         
                         <div class="col-md-4"><input type="text" name="name" class="form-control" placeholder="Предмет"></div>
-                        <div class="col-md-3"><input type="text" name="category" class="form-control"
-                                placeholder="Категория"></div>
+                        <div class="col-md-3"><input type="text" name="category" class="form-control" placeholder="Категория"></div>
                         <div class="col-md-3"><input type="text" name="city" class="form-control" placeholder="Локация"></div>
                         <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Търси</button></div>
-                        
                     </form>
-                    {% if lessons %}
-                    {% for lesson in lessons %}
-                    {% endfor %}
-                    {% else %}
-                    <div class="col-12 text-center py-5">
-                        <h3 class="text-muted">Няма намерени уроци за тези критерии. 📍</h3>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
 
         <div class="row">
-            {% for lesson in lessons %}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100 shadow-sm service-card p-0 position-relative">
+            {% if lessons %}
+                {% for lesson in lessons %}
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100 shadow-sm service-card p-0 position-relative rounded-4 overflow-hidden">
 
-                    {% if user_id and user_role == 'client' %}
-                    <div class="position-absolute top-0 end-0 p-3" style="z-index: 10;">
-                        <form action="/favorites" method="post">
-                            <input type="hidden" name="user_id" value="{{ user_id }}">
-                            <input type="hidden" name="lesson_id" value="{{ lesson.id }}">
-                            <button type="submit" class="btn btn-link p-0 text-danger shadow-none"
-                                title="Добави в любими">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
-                                    class="bi bi-heart" viewBox="0 0 16 16">
-                                    <path
-                                        d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15" />
-                                </svg>
-                            </button>
-                        </form>
-                    </div>
-                    {% endif %}
+                        {% if user_id and user_role == 'client' %}
+                        <div class="position-absolute top-0 end-0 p-3" style="z-index: 10;">
+                            <form action="/favorites" method="post">
+                                <input type="hidden" name="user_id" value="{{ user_id }}">
+                                <input type="hidden" name="lesson_id" value="{{ lesson.id }}">
+                                <button type="submit" class="btn btn-link p-0 text-danger shadow-none" title="Добави в любими">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" class="bi bi-heart" viewBox="0 0 16 16">
+                                        <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15" />
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                        {% endif %}
 
-                    <div class="card-body d-flex flex-column p-4">
-                        <h5 class="card-title fw-bold">{{ lesson.subject }}</h5>
-                        <h6 class="card-subtitle mb-3 text-muted">{{ lesson.category }}</h6>
-                        <p class="mb-1">
-    <strong>Преподавател:</strong> 
-    <a href="/public-profile/{{ lesson.teacher_id }}" class="text-decoration-none fw-bold text-primary">
-        {{ lesson.teacher_name }}
-    </a>
-</p>
+                        <div class="card-body d-flex flex-column p-4">
+                            <h5 class="card-title fw-bold mb-1">{{ lesson.subject }}</h5>
+                            <h6 class="card-subtitle mb-3 text-muted small">{{ lesson.category }}</h6>
+                            
+                            <p class="mb-2 small">
+                                <strong>Преподавател:</strong> 
+                                <a href="/public-profile/{{ lesson.teacher_id }}" class="text-decoration-none fw-bold text-primary">
+                                    {{ lesson.teacher_name }}
+                                </a>
+                            </p>
 
-<div class="mb-3">
-    {% set reviews = lesson.teacher.reviews %}
-    {% if reviews %}
-        {% set total_rating = reviews | map(attribute='rating') | sum %}
-        {% set avg_rating = (total_rating / reviews | count) | round(1) %}
-        <span class="text-warning">
-            {% for i in range(avg_rating | round | int) %}⭐{% endfor %}
-        </span>
-        <span class="fw-bold text-dark">{{ avg_rating }}</span>
-        <span class="text-muted small">({{ reviews | count }})</span>
+                            <div class="mb-3">
+                                {% if lesson.teacher and lesson.teacher.reviews %}
+                                    {% set reviews = lesson.teacher.reviews %}
+                                    {% set total_rating = reviews | map(attribute='rating') | sum %}
+                                    {% set avg_rating = (total_rating / reviews | count) | round(1) %}
+                                    <span class="text-warning">
+                                        {% for i in range(avg_rating | round | int) %}⭐{% endfor %}
+                                    </span>
+                                    <span class="fw-bold text-dark small">{{ avg_rating }}</span>
+                                    <span class="text-muted small">({{ reviews | count }})</span>
+                                {% else %}
+                                    <span class="text-muted small italic">Все още няма оценки</span>
+                                {% endif %}
+                            </div>
+
+                            <div class="mt-auto pt-3 border-top">
+                                <div class="d-flex justify-content-between align-items-end">
+                                    <div>
+                                        <div class="price-text">{{ "%.2f"|format(lesson.price) }} лв.</div>
+                                        <small class="text-muted" style="font-size: 0.7rem;">({{ "%.2f"|format(lesson.price / eur_rate) }} €)</small>
+                                    </div>
+
+                                    <div style="min-width: 160px;">
+    {% if user_id %}
+        {% if user_id == lesson.teacher_id %}
+            <span class="badge bg-info text-dark w-100 p-2 rounded-pill shadow-sm">Ваш урок</span>
+        {% elif user_role == 'client' %}
+            <form action="/book-lesson/{{ lesson.id }}" method="post" class="text-end">
+                <label class="small text-muted mb-1" style="font-size: 0.65rem;">Изберете час:</label>
+                <input type="datetime-local" id="datePicker-{{ lesson.id }}" name="appointment_time" class="form-control form-control-sm mb-2 rounded-3" required>
+                <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm rounded-pill">Запази час</button>
+                
+                <script>
+                    (function () {
+                        const now = new Date();
+                        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                        document.getElementById('datePicker-{{ lesson.id }}').min = now.toISOString().slice(0, 16);
+                    })();
+                </script>
+            </form>
+        {% else %}
+            <div class="alert alert-light border-0 small p-1 mb-0 text-center rounded-3" style="font-size: 0.7rem;">
+                ℹ️ Само ученици могат да записват часове.
+            </div>
+        {% endif %}
     {% else %}
-        <span class="text-muted small italic">Все още няма оценки</span>
+        <div class="text-end">
+            <p class="text-muted mb-1" style="font-size: 0.7rem;">Влезте за резервация</p>
+            <a href="/login" class="btn btn-outline-primary btn-sm w-100 rounded-pill">Вход</a>
+        </div>
     {% endif %}
 </div>
-                        <div class="mt-auto pt-3 border-top">
-                            <div class="d-flex justify-content-between align-items-end">
-                                <div>
-                                    <div class="price-text">{{ "%.2f"|format(lesson.price) }} лв.</div>
-                                    <small class="text-muted">({{ "%.2f"|format(lesson.price / eur_rate) }} €)</small>
-                                </div>
-
-                                <div style="min-width: 160px;">
-                                    {% if user_id %}
-                                    {% if user_id == lesson.teacher_id %}
-                                    <span class="badge bg-info text-dark w-100 p-2">Ваш урок</span>
-                                    {% else %}
-                                    <form action="/book-lesson/{{ lesson.id }}" method="post" class="text-end">
-                                        <label class="small text-muted mb-1" style="font-size: 0.7rem;">Изберете
-                                            час:</label>
-                                        <input type="datetime-local" id="datePicker-{{ lesson.id }}"
-                                            name="appointment_time" class="form-control form-control-sm mb-2" required>
-                                        <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm">Запази
-                                            час</button>
-                                        <script>
-                                            (function () {
-                                                const now = new Date();
-                                                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                                                document.getElementById('datePicker-{{ lesson.id }}').min = now.toISOString().slice(0, 16);
-                                            })();
-                                        </script>
-                                    </form>
-                                    {% endif %}
-                                    {% else %}
-                                    <div class="text-end">
-                                        <p class="text-muted mb-1" style="font-size: 0.7rem;">Влезте за резервация</p>
-                                        <a href="/login"
-                                            class="btn btn-outline-primary btn-sm w-100 rounded-pill">Вход</a>
-                                    </div>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center py-5">
+                    <h3 class="text-muted">Няма намерени уроци за тези критерии. 📍</h3>
+                </div>
+            {% endif %}
         </div>
     </div>
 
