@@ -66,7 +66,25 @@
                     {% endfor %}
                 </div>
                 {% endif %}
-
+                {% if user.role == 'tutor' %}
+<div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(45deg, #0d6efd, #0dcaf0); color: white;">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center">
+        <div>
+            <h6 class="mb-1 opacity-75">Общо спечелени средства от проведени уроци</h6>
+            <h2 class="fw-bold mb-0">
+                {% set total = namespace(value=0) %}
+                {% for h in history_bookings %}
+                    {% if h.status == 'Проведен' %}
+                        {% set total.value = total.value + h.lesson.price %}
+                    {% endif %}
+                {% endfor %}
+                {{ "%.2f"|format(total.value) }} лв.
+            </h2>
+        </div>
+        <div class="display-5 opacity-50">💰</div>
+    </div>
+</div>
+{% endif %}
                 <div class="card shadow-sm border-0 p-4 rounded-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <nav>
@@ -83,15 +101,21 @@
                         {% endif %}
                     </div>
 
-                    <div class="tab-content" id="nav-tabContent">
+                    <div class="tab-content mt-3" id="nav-tabContent">
                         <div class="tab-pane fade show active" id="nav-bookings">
-                            {% if bookings %}
+                            {% if request.query_params.get('message') == 'success' %}
+                            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                                <strong>Успешно плащане!</strong> Урокът е добавен в списъка ви с платени услуги.
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                            {% endif %}
+
+                            {% if upcoming_bookings %}
                             <div class="table-responsive">
                                 <table class="table align-middle">
                                     <thead class="table-light">
                                         <tr>
-                                            {% if user.role == 'tutor' %}<th>Ученик</th>{% endif %}
-                                            {% if user.role == 'client' %}<th>Учител</th>{% endif %}
+                                            <th>{% if user.role == 'tutor' %}Ученик{% else %}Учител{% endif %}</th>
                                             <th>Урок</th>
                                             <th>Дата/Час</th>
                                             <th>Статус</th>
@@ -99,38 +123,60 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for b in bookings %}
+                                        {% for b in upcoming_bookings %}
                                         <tr>
-                                            {% if user.role == 'tutor' %}
-                                            <td><a href="/public-profile/{{ b.client.id }}" class="text-decoration-none fw-bold text-dark small">👤 {{ b.client.first_name or b.client.username }}</a></td>
-                                            {% endif %}
-                                            {% if user.role == 'client' %}
-                                            <td><a href="/public-profile/{{ b.lesson.teacher_id }}" class="text-decoration-none fw-bold text-dark small">👨‍🏫 {{ b.lesson.teacher_name }}</a></td>
-                                            {% endif %}
-                                            <td><span class="fw-bold small">{{ b.lesson.subject }}</span></td>
-                                            <td class="small">{{ b.appointment_time | string | replace('T', ' ') }}</td>
-                                            <td><span class="badge {% if b.status == 'Потвърден' %}bg-success{% else %}bg-warning text-dark{% endif %} rounded-pill small">{{ b.status }}</span></td>
                                             <td>
-                                                <div class="d-flex gap-1">
-                                                    {% if user.role == 'tutor' and b.status == 'Заявен' %}
-                                                    <form action="/confirm-booking/{{ b.id }}" method="post">
-                                                        <button type="submit" class="btn btn-success btn-sm rounded-pill">Потвърди</button>
-                                                    </form>
+                                                <span class="small">
+                                                    {% if user.role == 'tutor' %}
+                                                        👤 {{ b.client.username }}
+                                                    {% else %}
+                                                        👨‍🏫 {{ b.lesson.teacher_name }}
                                                     {% endif %}
-                                                    {% if b.appointment_time | string > now | string %}
-                                                    <form action="/cancel-booking/{{ b.id }}" method="post">
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">Отмени</button>
-                                                    </form>
-                                                    {% endif %}
-                                                </div>
+                                                </span>
                                             </td>
+                                            <td><span class="fw-bold small">{{ b.lesson.subject }}</span></td>
+                                            <td class="small">{{ b.appointment_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                                            <td>
+                                                <span class="badge {% if b.status == 'Потвърден' %}bg-success{% elif b.status == 'Платен' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %} rounded-pill small">
+                                                    {{ b.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+    <div class="d-flex gap-2 align-items-center">
+        {% if user.role == 'tutor' and b.status == 'Заявен' %}
+            <form action="/confirm-booking/{{ b.id }}" method="post" class="m-0">
+                <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
+                    Потвърди
+                </button>
+            </form>
+        {% endif %}
+
+        {% if user.role == 'client' and b.status == 'Потвърден' %}
+            <a href="/checkout/{{ b.lesson_id }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
+                Плати
+            </a>
+        {% endif %}
+
+        {% if b.status == 'Платен' %}
+            <span class="badge bg-info text-dark rounded-pill px-3 py-2">Платено</span>
+        {% endif %}
+
+        {% if b.status != 'Платен' %}
+            <form action="/cancel-booking/{{ b.id }}" method="post" class="m-0">
+                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill">Отмени</button>
+            </form>
+        {% else %}
+            <button class="btn btn-link btn-sm text-muted p-0" data-bs-toggle="tooltip" title="За да отмените платен урок, моля свържете се с поддръжката">ℹ️</button>
+        {% endif %}
+    </div>
+</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table> 
                             </div>
                             {% else %}
-                            <div class="text-center py-4 text-muted small">Нямате активни резервации.</div>
+                            <div class="text-center py-5 text-muted small">Нямате предстоящи резервации.</div>
                             {% endif %}
                         </div>
 
@@ -148,16 +194,29 @@
                                     <tbody>
                                         {% for h in history_bookings %}
                                         <tr class="opacity-75">
-                                            <td><span class="fw-bold small">{{ h.lesson.subject }}</span></td>
-                                            <td class="small">{{ h.appointment_time | string | replace('T', ' ') }}</td>
-                                            <td><span class="badge bg-secondary rounded-pill small">{{ h.status }}</span></td>
-                                        </tr>
+    <td>
+        <span class="fw-bold small">{{ h.lesson.subject if h.lesson else "Урок (Премахнат)" }}</span>
+        {% if h.lesson and not h.lesson.is_active %}
+            <br><small class="text-danger">⚠️ Тази услуга вече не се предлага</small>
+        {% endif %}
+    </td>
+    <td class="small">{{ h.appointment_time.strftime('%d.%m.%Y %H:%M') }}</td>
+    <td>
+    {% if h.status == 'Проведен' %}
+        <span class="badge bg-success rounded-pill small">✅ Проведен</span>
+    {% elif h.status == 'Отменен от админ' %}
+        <span class="badge bg-secondary rounded-pill small">🚫 Отменен от админ</span>
+    {% else %}
+        <span class="badge bg-danger rounded-pill small">❌ Непроведен</span>
+    {% endif %}
+</td>
+</tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
                             {% else %}
-                            <div class="text-center py-4 text-muted small">Нямате минали уроци.</div>
+                            <div class="text-center py-5 text-muted small">Нямате минали уроци.</div>
                             {% endif %}
                         </div>
 
@@ -166,7 +225,7 @@
                             <div class="row g-3 mt-1">
                                 {% for lesson in favorite_lessons %}
                                 <div class="col-md-6" id="fav-card-{{ lesson.id }}">
-                                    <div class="card h-100 shadow-sm border-0 p-3 position-relative fav-card">
+                                    <div class="card h-100 shadow-sm border-0 p-3 fav-card position-relative">
                                         <button onclick="removeFromFavorites('{{ lesson.id }}')" class="btn btn-sm btn-outline-danger position-absolute" style="top: 10px; right: 10px; border-radius: 50%; width: 28px; height: 28px; padding: 0;">&times;</button>
                                         <div class="card-body p-2 d-flex flex-column">
                                             <h6 class="fw-bold text-primary mb-1">{{ lesson.subject }}</h6>
@@ -186,45 +245,47 @@
                                 {% endfor %}
                             </div>
                             {% else %}
-                            <div class="text-center py-5 text-muted small">Все още нямате любими услуги. <br><a href="/" class="btn btn-link btn-sm p-0">Разгледай обявите</a></div>
+                            <div class="text-center py-5 text-muted small">Нямате любими услуги.</div>
                             {% endif %}
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                    </div> </div> </div> </div> </div> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function deleteNotification(notifId) {
-    fetch('/delete-notification/' + notifId, { method: 'POST' })
-        .then(response => {
-            if (response.ok) {
-                const element = document.getElementById('notif-' + notifId);
-                const section = document.getElementById('notifications-section');
-                
-                if (element) {
-                    element.classList.remove('show');
-                    setTimeout(() => {
-                        element.remove();
-                        
-                        const remaining = section.querySelectorAll('.alert').length;
-                        if (remaining === 0) {
-                            section.style.display = 'none';
-                        }
-                    }, 200);
-                }
+        window.onload = function() {
+            if (window.location.search.includes('message=success')) {
+                setTimeout(() => {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('message');
+                    url.searchParams.delete('paid_id');
+                    window.history.replaceState({}, document.title, url);
+                }, 2000);
             }
-        });
-}
+        };
+
+        function deleteNotification(notifId) {
+            fetch('/delete-notification/' + notifId, { method: 'POST' })
+            .then(response => {
+                if (response.ok) {
+                    const element = document.getElementById('notif-' + notifId);
+                    if (element) {
+                        element.classList.remove('show');
+                        setTimeout(() => element.remove(), 200);
+                    }
+                }
+            });
+        }
+
         function removeFromFavorites(lessonId) {
             if (!confirm('Премахване от любими?')) return;
             fetch('/remove-favorite/' + lessonId, { method: 'POST' })
-                .then(response => { if (response.ok) {
+            .then(response => { 
+                if (response.ok) {
                     const element = document.getElementById('fav-card-' + lessonId);
-                    if (element) { element.style.opacity = '0'; setTimeout(() => { element.remove(); if (document.querySelectorAll('#nav-favs .fav-card').length === 0) location.reload(); }, 300); }
-                }});
+                    if (element) { 
+                        element.style.opacity = '0'; 
+                        setTimeout(() => location.reload(), 300); 
+                    }
+                }
+            });
         }
     </script>
 </body>

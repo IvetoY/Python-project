@@ -1,5 +1,7 @@
-from pydantic import BaseModel
+"""Schemas for data validation using Pydantic."""
 from typing import Optional
+from pydantic import BaseModel
+
 
 class UserCreate(BaseModel):
     email: str

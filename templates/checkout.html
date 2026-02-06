@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <title>Плащане - Услуги Наблизо</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-5">
+                <div class="card shadow-lg border-0 rounded-4">
+                    <div class="card-body p-4">
+                        <h4 class="fw-bold mb-4">Завършване на поръчката</h4>
+                        
+                        <div class="bg-light p-3 rounded-3 mb-4">
+                            <h6 class="text-muted mb-1">Урок:</h6>
+                            <p class="fw-bold mb-2">{{ lesson.subject }}</p>
+                            <h6 class="text-muted mb-1">Преподавател:</h6>
+                            <p class="fw-bold mb-2">{{ lesson.teacher_name }}</p>
+                            <hr>
+                            <div class="d-flex justify-content-between">
+                                <span class="h5">Общо за плащане:</span>
+                                <span class="h5 text-primary">{{ "%.2f"|format(lesson.price) }} лв.</span>
+                            </div>
+                        </div>
+
+                        <form action="/process-payment/{{ lesson.id }}" method="post">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Име върху картата</label>
+                                <input type="text" class="form-control" placeholder="Иван Иванов" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Номер на картата</label>
+                                <input type="text" class="form-control" placeholder="0000 0000 0000 0000" required>
+                            </div>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small fw-bold">Валидност</label>
+                                    <input type="text" class="form-control" placeholder="ММ/ГГ" required>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="form-label small fw-bold">CVV</label>
+                                    <input type="text" class="form-control" placeholder="123" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm">Плати сигурно</button>
+                        </form>
+                        
+                        <div class="text-center mt-3">
+                            <a href="/" class="text-muted small text-decoration-none">← Откажи и се върни</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
