@@ -26,7 +26,7 @@
 
     ```bash
     uvicorn main:app --reload
-    ##Забележка: Отворете браузъра на https://www.google.com/search?q=http://127.0.0.1:8000
+    ##Забележка: Отворете апликацията на https:http://127.0.0.1:8000
 
 🛠️ Технологии
 Backend: FastAPI, SQLAlchemy (ORM)
