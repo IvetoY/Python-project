@@ -7,8 +7,7 @@
 
 1. **Клонирайте проекта:**
    ```bash
-   git clone <your-repository-link>
-   cd <project-folder>
+   git clone <https://github.com/IvetoY/Python-project/tree/main>
 
 2. **Създайте виртуална среда и я активирайте:**
     ```bash
