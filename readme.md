@@ -25,10 +25,10 @@
 3. **Стартирайте сървъра:**
 
     ```bash
-    uvicorn main:app --reload
+    python -m uvicorn app.main:app --reload
     ##Забележка: Отворете апликацията на https:http://127.0.0.1:8000
 
-🛠️ Технологии
+**Технологии**
 Backend: FastAPI, SQLAlchemy (ORM)
 
 Database: SQLite
@@ -37,7 +37,7 @@ Frontend: Jinja2 Templates, Bootstrap 5, JavaScript
 
 Validation: Pydantic
 
-Основни функционалности
+**Основни функционалности**
 🔍 Търсене: Филтриране на уроци по предмет, град и категория.
 
 📅 Резервации: Клиентите запазват часове, а учителите ги потвърждават или отказват.
