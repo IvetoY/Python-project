@@ -4,31 +4,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Моят Профил - Услуги Наблизо</title>
+    <title>Моят Профил</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
-        .badge-tutor { background-color: #0d6efd; color: #fff; }
-        .badge-client { background-color: #6c757d; color: #fff; }
-        .fav-card { transition: transform 0.2s; border-radius: 15px; }
-        .fav-card:hover { transform: translateY(-5px); }
+        .badge-tutor {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+
+        .badge-client {
+            background-color: #6c757d;
+            color: #fff;
+        }
+
+        .fav-card {
+            transition: transform 0.2s;
+            border-radius: 15px;
+        }
+
+        .fav-card:hover {
+            transform: translateY(-5px);
+        }
+
         .avatar-circle {
-            width: 90px; height: 90px; font-size: 32px; 
-            display: flex; align-items: center; justify-content: center;
+            width: 90px;
+            height: 90px;
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin: 0 auto 15px;
         }
-        .nav-tabs .nav-link { color: #6c757d; border: none; font-weight: 500; }
-        .nav-tabs .nav-link.active { color: #0d6efd; border-bottom: 3px solid #0d6efd; background: none; }
+
+        .nav-tabs .nav-link {
+            color: #6c757d;
+            border: none;
+            font-weight: 500;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            border-bottom: 3px solid #0d6efd;
+            background: none;
+        }
     </style>
 </head>
 
 <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5 shadow-sm">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="/">📍 Услуги Наблизо</a>
+            <a class="navbar-brand fw-bold" href="/">Начало</a>
             <div class="ms-auto">
-               <a href="/profile" class="btn btn-link text-light text-decoration-none me-3">Моят профил</a>
-                <a href="/logout"class="btn btn-link text-light text-decoration-none me-3"
-                        >Изход</a>
+                <a href="/profile" class="btn btn-link text-light text-decoration-none me-3">Моят профил</a>
+                <a href="/logout" class="btn btn-link text-light text-decoration-none me-3">Изход</a>
             </div>
         </div>
     </nav>
@@ -42,7 +71,8 @@
                     </div>
                     <h4 class="fw-bold mb-1">{{ user.first_name or user.username }}</h4>
                     <p class="text-muted small mb-3">{{ user.email }}</p>
-                    <span class="badge {% if user.role == 'tutor' %}badge-tutor{% else %}badge-client{% endif %} mb-3 px-3 py-2 rounded-pill">
+                    <span
+                        class="badge {% if user.role == 'tutor' %}badge-tutor{% else %}badge-client{% endif %} mb-3 px-3 py-2 rounded-pill">
                         {{ 'Учител' if user.role == 'tutor' else 'Клиент' }}
                     </span>
                     <hr>
@@ -50,63 +80,91 @@
                         <p class="small mb-2"><strong>📞 Телефон:</strong> {{ user.phone or 'Не е посочен' }}</p>
                         <p class="small mb-0"><strong>📍 Адрес:</strong> {{ user.address or 'Не е посочен' }}</p>
                     </div>
-                    <a href="/edit-profile" class="btn btn-outline-primary btn-sm w-100 rounded-pill">Редактирай профила</a>
+                    <a href="/edit-profile" class="btn btn-outline-primary btn-sm w-100 rounded-pill">Редактирай
+                        профила</a>
                 </div>
             </div>
 
             <div class="col-md-8">
-                {% if notifications %}
-                <div id="notifications-section" class="mb-4">
+                <div id="url-messages-section">
+                    {% if request.query_params.get('message') == 'booked' %}
+                    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4 rounded-4"
+                        role="alert">
+                        <strong>Успешна резервация!</strong> Преподавателят беше уведомен.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% elif request.query_params.get('message') == 'cancelled' %}
+                    <div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm mb-4 rounded-4"
+                        role="alert">
+                        Резервацията беше <strong>отменена</strong> успешно.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div id="notifications-section" class="mb-4" {% if not notifications %}style="display: none;" {% endif
+                    %}>
                     <h5 class="fw-bold mb-3 text-primary">🔔 Нови известия</h5>
+
                     {% for n in notifications %}
-                    <div class="alert alert-white border-start border-primary border-4 shadow-sm mb-2 alert-dismissible fade show" role="alert" id="notif-{{ n.id }}">
+                    <div class="alert alert-white border-start border-primary border-4 shadow-sm mb-2 alert-dismissible fade show notification-item"
+                        role="alert" id="notif-{{ n.id }}">
                         <span class="small">{{ n.message }}</span>
-                        <button type="button" class="btn-close" onclick="deleteNotification('{{ n.id }}')" aria-label="Затвори"></button>
+                        <button type="button" class="btn-close" onclick="deleteNotification('{{ n.id }}')"
+                            aria-label="Затвори"></button>
                     </div>
                     {% endfor %}
                 </div>
-                {% endif %}
+
                 {% if user.role == 'tutor' %}
-<div class="card border-0 shadow-sm rounded-4 mb-4" style="background: linear-gradient(45deg, #0d6efd, #0dcaf0); color: white;">
-    <div class="card-body p-4 d-flex justify-content-between align-items-center">
-        <div>
-            <h6 class="mb-1 opacity-75">Общо спечелени средства от проведени уроци</h6>
-            <h2 class="fw-bold mb-0">
-                {% set total = namespace(value=0) %}
-                {% for h in history_bookings %}
-                    {% if h.status == 'Проведен' %}
-                        {% set total.value = total.value + h.lesson.price %}
-                    {% endif %}
-                {% endfor %}
-                {{ "%.2f"|format(total.value) }} лв.
-            </h2>
-        </div>
-        <div class="display-5 opacity-50">💰</div>
-    </div>
-</div>
-{% endif %}
+                <div class="card border-0 shadow-sm rounded-4 mb-4"
+                    style="background: linear-gradient(45deg, #0d6efd, #0dcaf0); color: white;">
+                    <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1 opacity-75">Спечелени средства от проведени уроци</h6>
+                            <h2 class="fw-bold mb-0">
+                                {% set total = namespace(value=0) %}
+                                {% for h in history_bookings %}
+                                {% if h.status == 'Проведен' %}
+                                {% set total.value = total.value + h.lesson.price %}
+                                {% endif %}
+                                {% endfor %}
+                                {{ "%.2f"|format(total.value) }} лв.
+                            </h2>
+                        </div>
+                        <div class="display-5 opacity-50">💰</div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="card shadow-sm border-0 p-4 rounded-4">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <nav>
                             <div class="nav nav-tabs border-0" id="nav-tab" role="tablist">
-                                <button class="nav-link active" id="nav-bookings-tab" data-bs-toggle="tab" data-bs-target="#nav-bookings">
+                                <button class="nav-link active" id="nav-bookings-tab" data-bs-toggle="tab"
+                                    data-bs-target="#nav-bookings">
                                     {% if user.role == 'client' %}Моите записвания{% else %}Предстоящи{% endif %}
                                 </button>
-                                <button class="nav-link" id="nav-history-tab" data-bs-toggle="tab" data-bs-target="#nav-history">История</button>
-                                <button class="nav-link" id="nav-favs-tab" data-bs-toggle="tab" data-bs-target="#nav-favs">Любими</button>
+                                <button class="nav-link" id="nav-history-tab" data-bs-toggle="tab"
+                                    data-bs-target="#nav-history">История</button>
+                                <button class="nav-link" id="nav-favs-tab" data-bs-toggle="tab"
+                                    data-bs-target="#nav-favs">Любими</button>
                             </div>
                         </nav>
                         {% if user.role == 'tutor' %}
-                        <a href="/add-lesson" class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill">+ Добави урок</a>
+                        <a href="/add-lesson" class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill">+ Добави
+                            урок</a>
                         {% endif %}
                     </div>
 
                     <div class="tab-content mt-3" id="nav-tabContent">
                         <div class="tab-pane fade show active" id="nav-bookings">
                             {% if request.query_params.get('message') == 'success' %}
-                            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+                            <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4"
+                                role="alert">
                                 <strong>Успешно плащане!</strong> Урокът е добавен в списъка ви с платени услуги.
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"
+                                    aria-label="Close"></button>
                             </div>
                             {% endif %}
 
@@ -119,61 +177,54 @@
                                             <th>Урок</th>
                                             <th>Дата/Час</th>
                                             <th>Статус</th>
-                                            <th>Действие</th> 
+                                            <th>Действие</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {% for b in upcoming_bookings %}
                                         <tr>
-                                            <td>
-                                                <span class="small">
-                                                    {% if user.role == 'tutor' %}
-                                                        👤 {{ b.client.username }}
-                                                    {% else %}
-                                                        👨‍🏫 {{ b.lesson.teacher_name }}
-                                                    {% endif %}
-                                                </span>
-                                            </td>
+                                            <td><span class="small">{% if user.role == 'tutor' %}👤 {{ b.client.username
+                                                    }}{% else %}👨‍🏫 {{ b.lesson.teacher_name }}{% endif %}</span></td>
                                             <td><span class="fw-bold small">{{ b.lesson.subject }}</span></td>
-                                            <td class="small">{{ b.appointment_time.strftime('%d.%m.%Y %H:%M') }}</td>
+                                            <td class="small">{{ b.appointment_time.strftime('%d.%m.%Y %H:%M') if
+                                                b.appointment_time is not string else b.appointment_time.replace('T', '
+                                                ') }}</td>
                                             <td>
-                                                <span class="badge {% if b.status == 'Потвърден' %}bg-success{% elif b.status == 'Платен' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %} rounded-pill small">
+                                                <span
+                                                    class="badge {% if b.status == 'Потвърден' %}bg-success{% elif b.status == 'Платен' %}bg-info text-dark{% else %}bg-warning text-dark{% endif %} rounded-pill small">
                                                     {{ b.status }}
                                                 </span>
                                             </td>
                                             <td>
-    <div class="d-flex gap-2 align-items-center">
-        {% if user.role == 'tutor' and b.status == 'Заявен' %}
-            <form action="/confirm-booking/{{ b.id }}" method="post" class="m-0">
-                <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">
-                    Потвърди
-                </button>
-            </form>
-        {% endif %}
-
-        {% if user.role == 'client' and b.status == 'Потвърден' %}
-            <a href="/checkout/{{ b.lesson_id }}" class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">
-                Плати
-            </a>
-        {% endif %}
-
-        {% if b.status == 'Платен' %}
-            <span class="badge bg-info text-dark rounded-pill px-3 py-2">Платено</span>
-        {% endif %}
-
-        {% if b.status != 'Платен' %}
-            <form action="/cancel-booking/{{ b.id }}" method="post" class="m-0">
-                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill">Отмени</button>
-            </form>
-        {% else %}
-            <button class="btn btn-link btn-sm text-muted p-0" data-bs-toggle="tooltip" title="За да отмените платен урок, моля свържете се с поддръжката">ℹ️</button>
-        {% endif %}
-    </div>
-</td>
+                                                <div class="d-flex gap-2 align-items-center">
+                                                    {% if user.role == 'tutor' and b.status == 'Заявен' %}
+                                                    <form action="/update-booking/{{ b.id }}/Потвърден" method="post"
+                                                        class="m-0">
+                                                        <button type="submit"
+                                                            class="btn btn-success btn-sm rounded-pill px-3 shadow-sm">Потвърди</button>
+                                                    </form>
+                                                    <form action="/update-booking/{{ b.id }}/Отказан" method="post"
+                                                        class="m-0">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-danger btn-sm rounded-pill">Откажи</button>
+                                                    </form>
+                                                    {% endif %}
+                                                    {% if user.role == 'client' and b.status == 'Потвърден' %}
+                                                    <a href="/checkout/{{ b.lesson_id }}"
+                                                        class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm">Плати</a>
+                                                    {% endif %}
+                                                    {% if b.status != 'Платен' %}
+                                                    <form action="/cancel-booking/{{ b.id }}" method="post" class="m-0">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-danger btn-sm rounded-pill">Отмени</button>
+                                                    </form>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
-                                </table> 
+                                </table>
                             </div>
                             {% else %}
                             <div class="text-center py-5 text-muted small">Нямате предстоящи резервации.</div>
@@ -194,23 +245,12 @@
                                     <tbody>
                                         {% for h in history_bookings %}
                                         <tr class="opacity-75">
-    <td>
-        <span class="fw-bold small">{{ h.lesson.subject if h.lesson else "Урок (Премахнат)" }}</span>
-        {% if h.lesson and not h.lesson.is_active %}
-            <br><small class="text-danger">⚠️ Тази услуга вече не се предлага</small>
-        {% endif %}
-    </td>
-    <td class="small">{{ h.appointment_time.strftime('%d.%m.%Y %H:%M') }}</td>
-    <td>
-    {% if h.status == 'Проведен' %}
-        <span class="badge bg-success rounded-pill small">✅ Проведен</span>
-    {% elif h.status == 'Отменен от админ' %}
-        <span class="badge bg-secondary rounded-pill small">🚫 Отменен от админ</span>
-    {% else %}
-        <span class="badge bg-danger rounded-pill small">❌ Непроведен</span>
-    {% endif %}
-</td>
-</tr>
+                                            <td><span class="fw-bold small">{{ h.lesson.subject if h.lesson else "Урок
+                                                    (Премахнат)" }}</span></td>
+                                            <td class="small">{{ h.appointment_time }}</td>
+                                            <td><span class="badge bg-success rounded-pill small">{{ h.status }}</span>
+                                            </td>
+                                        </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
@@ -226,18 +266,23 @@
                                 {% for lesson in favorite_lessons %}
                                 <div class="col-md-6" id="fav-card-{{ lesson.id }}">
                                     <div class="card h-100 shadow-sm border-0 p-3 fav-card position-relative">
-                                        <button onclick="removeFromFavorites('{{ lesson.id }}')" class="btn btn-sm btn-outline-danger position-absolute" style="top: 10px; right: 10px; border-radius: 50%; width: 28px; height: 28px; padding: 0;">&times;</button>
+                                        <button onclick="removeFromFavorites('{{ lesson.id }}')"
+                                            class="btn btn-sm btn-outline-danger position-absolute"
+                                            style="top: 10px; right: 10px; border-radius: 50%; width: 28px; height: 28px; padding: 0;">&times;</button>
                                         <div class="card-body p-2 d-flex flex-column">
                                             <h6 class="fw-bold text-primary mb-1">{{ lesson.subject }}</h6>
                                             <p class="text-muted small mb-3">Преподавател: {{ lesson.teacher_name }}</p>
                                             <div class="mt-auto border-top pt-2">
                                                 <form action="/book-lesson/{{ lesson.id }}" method="post">
                                                     <div class="d-flex gap-1 align-items-center">
-                                                        <input type="datetime-local" name="appointment_time" class="form-control form-control-sm" required>
-                                                        <button type="submit" class="btn btn-primary btn-sm px-2">Запази</button>
+                                                        <input type="datetime-local" name="appointment_time"
+                                                            class="form-control form-control-sm" required>
+                                                        <button type="submit"
+                                                            class="btn btn-primary btn-sm px-2">Запази</button>
                                                     </div>
                                                 </form>
-                                                <div class="mt-2 fw-bold text-dark small">{{ "%.2f"|format(lesson.price) }} лв.</div>
+                                                <div class="mt-2 fw-bold text-dark small">{{ "%.2f"|format(lesson.price)
+                                                    }} лв.</div>
                                             </div>
                                         </div>
                                     </div>
@@ -248,45 +293,56 @@
                             <div class="text-center py-5 text-muted small">Нямате любими услуги.</div>
                             {% endif %}
                         </div>
-                    </div> </div> </div> </div> </div> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        window.onload = function() {
-            if (window.location.search.includes('message=success')) {
+        window.onload = function () {
+            if (window.location.search.includes('message=')) {
                 setTimeout(() => {
                     const url = new URL(window.location);
                     url.searchParams.delete('message');
                     url.searchParams.delete('paid_id');
                     window.history.replaceState({}, document.title, url);
-                }, 2000);
+                }, 3000);
             }
         };
 
         function deleteNotification(notifId) {
-            fetch('/delete-notification/' + notifId, { method: 'POST' })
-            .then(response => {
-                if (response.ok) {
-                    const element = document.getElementById('notif-' + notifId);
-                    if (element) {
-                        element.classList.remove('show');
-                        setTimeout(() => element.remove(), 200);
+            fetch(`/delete-notification/${notifId}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const element = document.getElementById(`notif-${notifId}`);
+                        if (element) element.remove();
+                        const remaining = document.querySelectorAll('.notification-item').length;
+                        if (remaining === 0) {
+                            const section = document.getElementById('notifications-section');
+                            if (section) section.style.display = 'none';
+                        }
                     }
-                }
-            });
+                })
+                .catch(error => console.error('Error:', error));
         }
 
         function removeFromFavorites(lessonId) {
             if (!confirm('Премахване от любими?')) return;
             fetch('/remove-favorite/' + lessonId, { method: 'POST' })
-            .then(response => { 
-                if (response.ok) {
-                    const element = document.getElementById('fav-card-' + lessonId);
-                    if (element) { 
-                        element.style.opacity = '0'; 
-                        setTimeout(() => location.reload(), 300); 
+                .then(response => {
+                    if (response.ok) {
+                        const element = document.getElementById('fav-card-' + lessonId);
+                        if (element) {
+                            element.style.opacity = '0';
+                            setTimeout(() => location.reload(), 300);
+                        }
                     }
-                }
-            });
+                });
         }
     </script>
 </body>
+
 </html>

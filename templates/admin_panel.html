@@ -1,22 +1,41 @@
 <!DOCTYPE html>
 <html lang="bg">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Админ Панел - Услуги Наблизо</title>
+    <title>Админ Панел</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .admin-card { border: none; border-radius: 15px; transition: 0.3s; }
-        .table thead { background-color: #f8f9fa; }
-        .status-badge { font-size: 0.8rem; padding: 5px 12px; border-radius: 20px; }
-        .stat-card { border: none; border-radius: 12px; color: white; }
+        .admin-card {
+            border: none;
+            border-radius: 15px;
+            transition: 0.3s;
+        }
+
+        .table thead {
+            background-color: #f8f9fa;
+        }
+
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+
+        .stat-card {
+            border: none;
+            border-radius: 12px;
+            color: white;
+        }
     </style>
 </head>
+
 <body class="bg-light">
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="/">🛡️ Админ Контрол</a>
+            <a class="navbar-brand fw-bold" href="/">Администратор</a>
             <div class="navbar-nav ms-auto">
                 <span class="nav-link text-light me-3">Здравей, {{ admin_name }}!</span>
                 <a href="/" class="btn btn-outline-light btn-sm">Към сайта</a>
@@ -60,7 +79,7 @@
                         <h2 class="fw-bold">
                             {% set total_revenue = namespace(value=0) %}
                             {% for t in transactions %}
-                                {% set total_revenue.value = total_revenue.value + t.amount %}
+                            {% set total_revenue.value = total_revenue.value + t.amount %}
                             {% endfor %}
                             {{ "%.2f"|format(total_revenue.value) }} лв.
                         </h2>
@@ -69,104 +88,110 @@
             </div>
         </div>
 
-<div class="card shadow-sm admin-card p-4 mb-5">
-    <h3 class="fw-bold mb-4">Управление на потребители</h3>
+        <div class="card shadow-sm admin-card p-4 mb-5">
+            <h3 class="fw-bold mb-4">Управление на потребители</h3>
 
-    <ul class="nav nav-tabs mb-4" id="userTabs" role="tablist">
-        <li class="nav-item">
-            <button class="nav-link active" id="active-users-tab" data-bs-toggle="tab" data-bs-target="#active-users" type="button" role="tab">
-                Активни
-            </button>
-        </li>
-        <li class="nav-item">
-            <button class="nav-link" id="archived-users-tab" data-bs-toggle="tab" data-bs-target="#archived-users" type="button" role="tab">
-                Деактивирани
-            </button>
-        </li>
-    </ul>
+            <ul class="nav nav-tabs mb-4" id="userTabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" id="active-users-tab" data-bs-toggle="tab"
+                        data-bs-target="#active-users" type="button" role="tab">
+                        Активни
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="archived-users-tab" data-bs-toggle="tab"
+                        data-bs-target="#archived-users" type="button" role="tab">
+                        Деактивирани
+                    </button>
+                </li>
+            </ul>
 
-    <div class="tab-content" id="userTabsContent">
-        <div class="tab-pane fade show active" id="active-users" role="tabpanel">
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead>
-                        <tr>
-                            <th>Име</th>
-                            <th>Роля</th>
-                            <th class="text-end">Действие</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for u in users if u.is_active %}
-                        <tr>
-                            <td>
-                                <strong>{{ u.username }}</strong><br>
-                                <small class="text-muted">{{ u.email }}</small>
-                            </td>
-                            <td>
-                                <span class="badge {% if u.role == 'tutor' %}bg-primary{% else %}bg-secondary{% endif %}">
-                                    {{ 'Учител' if u.role == 'tutor' else 'Клиент' }}
-                                </span>
-                            </td>
-                            <td class="text-end">
-    <div class="d-flex gap-2 justify-content-end">
-        {% if u.role == 'tutor' and not u.is_verified %}
-            <form action="/admin/verify-tutor/{{ u.id }}" method="post">
-                <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
-                    ✅ Одобри
-                </button>
-            </form>
-        {% endif %}
+            <div class="tab-content" id="userTabsContent">
+                <div class="tab-pane fade show active" id="active-users" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Име</th>
+                                    <th>Роля</th>
+                                    <th class="text-end">Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in users if u.is_active %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ u.username }}</strong><br>
+                                        <small class="text-muted">{{ u.email }}</small>
+                                    </td>
+                                    <td>
+                                        <span
+                                            class="badge {% if u.role == 'tutor' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                            {{ 'Учител' if u.role == 'tutor' else 'Клиент' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="d-flex gap-2 justify-content-end">
+                                            {% if u.role == 'tutor' and not u.is_verified %}
+                                            <form action="/admin/verify-tutor/{{ u.id }}" method="post">
+                                                <button type="submit" class="btn btn-success btn-sm rounded-pill px-3">
+                                                    Одобри
+                                                </button>
+                                            </form>
+                                            {% endif %}
 
-        <form action="/admin/delete-user/{{ u.id }}" method="post">
-            <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="return confirm('Сигурни ли сте?')">
-                Деактивирай
-            </button>
-        </form>
-    </div>
-</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                            <form action="/admin/delete-user/{{ u.id }}" method="post">
+                                                <button type="submit"
+                                                    class="btn btn-outline-danger btn-sm rounded-pill px-3"
+                                                    onclick="return confirm('Сигурни ли сте?')">
+                                                    Деактивирай
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="archived-users" role="tabpanel">
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Име</th>
+                                    <th>Роля</th>
+                                    <th>Статус</th>
+                                    <th class="text-end">Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for u in users if not u.is_active %}
+                                <tr class="text-muted bg-light">
+                                    <td>
+                                        <strong>{{ u.username }}</strong><br>
+                                        <small>{{ u.email }}</small>
+                                    </td>
+                                    <td>{{ 'Учител' if u.role == 'tutor' else 'Клиент' }}</td>
+                                    <td><span class="badge bg-danger">Деактивиран</span></td>
+                                    <td class="text-end">
+                                        <form action="/admin/restore-user/{{ u.id }}" method="post" class="d-inline">
+                                            <button type="submit"
+                                                class="btn btn-outline-success btn-sm rounded-pill px-3">
+                                                Възстанови
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <div class="tab-pane fade" id="archived-users" role="tabpanel">
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Име</th>
-                    <th>Роля</th>
-                    <th>Статус</th>
-                    <th class="text-end">Действие</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in users if not u.is_active %}
-                <tr class="text-muted bg-light">
-                    <td>
-                        <strong>{{ u.username }}</strong><br>
-                        <small>{{ u.email }}</small>
-                    </td>
-                    <td>{{ 'Учител' if u.role == 'tutor' else 'Клиент' }}</td>
-                    <td><span class="badge bg-danger">Деактивиран</span></td>
-                    <td class="text-end">
-                        <form action="/admin/restore-user/{{ u.id }}" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-outline-success btn-sm rounded-pill px-3">
-                                Възстанови
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-    </div>
-</div>        
 
         <div class="row mb-5">
             <div class="col-12">
@@ -189,7 +214,8 @@
                                 <td class="fst-italic text-muted">"{{ r.comment }}"</td>
                                 <td class="text-end">
                                     <form action="/admin/delete-review/{{ r.id }}" method="post">
-                                        <button type="submit" class="btn btn-link btn-sm text-danger p-0" onclick="return confirm('Изтриване?')">Премахни</button>
+                                        <button type="submit" class="btn btn-link btn-sm text-danger p-0"
+                                            onclick="return confirm('Изтриване?')">Премахни</button>
                                     </form>
                                 </td>
                             </tr>
@@ -206,17 +232,24 @@
                     <h4 class="fw-bold mb-3">Всички услуги (Уроци)</h4>
                     <ul class="nav nav-tabs mb-4" id="adminTabs" role="tablist">
                         <li class="nav-item">
-                            <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-lessons">Активни</button>
+                            <button class="nav-link active" id="active-tab" data-bs-toggle="tab"
+                                data-bs-target="#active-lessons">Активни</button>
                         </li>
                         <li class="nav-item">
-                            <button class="nav-link" id="archived-tab" data-bs-toggle="tab" data-bs-target="#archived-lessons">Архив</button>
+                            <button class="nav-link" id="archived-tab" data-bs-toggle="tab"
+                                data-bs-target="#archived-lessons">Архив</button>
                         </li>
                     </ul>
                     <div class="tab-content">
                         <div class="tab-pane fade show active" id="active-lessons">
                             <table class="table table-hover align-middle">
                                 <thead>
-                                    <tr><th>Урок</th><th>Учител</th><th>Цена</th><th class="text-end">Действие</th></tr>
+                                    <tr>
+                                        <th>Урок</th>
+                                        <th>Учител</th>
+                                        <th>Цена</th>
+                                        <th class="text-end">Действие</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {% for lesson in lessons if lesson.is_active %}
@@ -226,7 +259,8 @@
                                         <td>{{ "%.2f"|format(lesson.price) }} лв.</td>
                                         <td class="text-end">
                                             <form action="/admin/delete-lesson/{{ lesson.id }}" method="post">
-                                                <button type="submit" class="btn btn-danger btn-sm rounded-pill">🗑️ Премахни</button>
+                                                <button type="submit"
+                                                    class="btn btn-danger btn-sm rounded-pill">Премахни</button>
                                             </form>
                                         </td>
                                     </tr>
@@ -237,7 +271,11 @@
                         <div class="tab-pane fade" id="archived-lessons">
                             <table class="table align-middle">
                                 <thead>
-                                    <tr><th>Урок</th><th>Учител</th><th>Статус</th></tr>
+                                    <tr>
+                                        <th>Урок</th>
+                                        <th>Учител</th>
+                                        <th>Статус</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {% for lesson in lessons if not lesson.is_active %}
@@ -258,7 +296,7 @@
         <div class="row mb-5">
             <div class="col-12">
                 <div class="card shadow-sm admin-card p-4 border-0" style="background-color: #fffbeb;">
-                    <h4 class="fw-bold mb-3 text-warning">💰 Финансов отчет</h4>
+                    <h4 class="fw-bold mb-3 text-warning"> Финансов отчет</h4>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead>
@@ -278,11 +316,11 @@
                                     <td>{{ t.client.username }}</td>
                                     <td>
                                         {% if t.teacher %}
-                                            {{ t.teacher.first_name }}
+                                        {{ t.teacher.first_name }}
                                         {% elif t.lesson and t.lesson.teacher_name %}
-                                            {{ t.lesson.teacher_name }}
+                                        {{ t.lesson.teacher_name }}
                                         {% else %}
-                                            <span class="text-muted">Иван Иванов (Архив)</span>
+                                        <span class="text-muted">Архивиран учител</span>
                                         {% endif %}
                                     </td>
                                     <td class="fw-bold text-success">{{ "%.2f"|format(t.amount) }} лв.</td>
@@ -296,6 +334,8 @@
                 </div>
             </div>
         </div>
-    </div> <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

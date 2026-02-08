@@ -39,7 +39,7 @@ def test_search_logic():
     tut = models.User(username="t", email="t@t.com", role="tutor", is_verified=True, address="Sofia")
     db.add(tut)
     db.commit()
-    db.add(models.Lesson(subject="Bio", category="Sci", teacher_id=tut.id, is_active=True))
+    db.add(models.Lesson(subject="Bio", category="Sci", teacher_id=tut.id, is_active=True, price=10.0))
     db.commit()
     db.close()
 
@@ -47,12 +47,26 @@ def test_search_logic():
     assert res.status_code == 200
 
 def test_user_flow():
-    """Covers registration and login paths."""
-    client.post("/register-web", data={
-        "username": "u", "email": "e@e.com", "password": "p", "role": "client"
-    })
-    client.post("/login-web", data={"email": "e@e.com", "password": "p"})
-    client.get("/logout")
+    response = client.post("/register-web", data={
+        "first_name": "Иван Иванов",
+        "username": "ivan_test",
+        "email": "test@example.com",
+        "password": "password123",
+        "phone": "0888111222",
+        "address": "София",
+        "role": "client"
+    }, follow_redirects=True)
+    
+    login_res = client.post("/login-web", data={
+        "email": "test@example.com",
+        "password": "password123"
+    }, follow_redirects=True)
+    
+    assert login_res.status_code == 200
+    
+    logout_res = client.get("/logout")
+    assert logout_res.status_code == 200
+
 
 def test_admin_actions():
     """Covers admin panel and management."""
@@ -119,7 +133,6 @@ def test_extra_pages():
 
 def test_database_connection_directly():
     """Forces execution of the get_db generator to hit 100% coverage on database.py."""
-    from app.database import get_db
     db_gen = get_db()
     db_session = next(db_gen)
     assert db_session is not None
@@ -190,4 +203,70 @@ def test_final_admin_and_booking_logic():
     client.post(f"/admin/delete-review/{r_id}", cookies=adm_cookies)
 
     client.post(f"/update-booking/{b_id}/Платен", cookies=tut_cookies)
+
+
+def test_full_public_profile_view():
+    db = TestingSessionLocal()
+    tut = models.User(username="pro_tut", email="pro@t.com", role="tutor", is_verified=True)
+    db.add(tut)
+    db.commit()
+    
+    db.add(models.Lesson(subject="Math", price=20, teacher_id=tut.id, is_active=True))
+    db.add(models.Review(teacher_id=tut.id, user_id=1, rating=5, comment="Great!"))
+    db.commit()
+    t_id = tut.id
+    db.close()
+
+    client.get(f"/public-profile/{t_id}")
+    client.get(f"/public-profile/{t_id}", cookies={"current_user_id": "1"})
+
+def test_checkout_and_payment_final():
+    db = TestingSessionLocal()
+    tut = models.User(username="pay_tut", email="p@t.com", role="tutor", is_verified=True)
+    clt = models.User(username="pay_clt", email="p@c.com", role="client")
+    db.add_all([tut, clt])
+    db.commit()
+    
+    les = models.Lesson(subject="Pay", price=50, teacher_id=tut.id, is_active=True)
+    db.add(les)
+    db.commit()
+    
+    book = models.Booking(client_id=clt.id, lesson_id=les.id, status="Потвърден", appointment_time="2026-01-01 10:00")
+    db.add(book)
+    db.commit()
+    
+    l_id, c_id = les.id, clt.id
+    db.close()
+
+    cookies = {"current_user_id": str(c_id)}
+    client.get(f"/checkout/{l_id}", cookies=cookies)
+    res = client.post(f"/process-payment/{l_id}", cookies=cookies)
+    assert res.status_code in [200, 303]
+
+
+def test_register_invalid_phone() -> None:
+    response = client.post("/register-web", data={
+        "first_name": "Иван", "username": "ivan1", "email": "i@e.com",
+        "password": "123", "phone": "12345",
+        "role": "client", "address": "София"
+    })
+    assert "Невалиден български телефонен номер" in response.text
+
+def test_register_invalid_language() -> None:
+    response = client.post("/register-web", data={
+        "first_name": "Ivan",
+        "username": "ivan1", "email": "i@e.com",
+        "password": "123", "phone": "0888111222",
+        "role": "client", "address": "Sofia"
+    })
+    assert "Моля, пишете на кирилица" in response.text
+
+def test_submit_review_invalid_rating() -> None:
+    client.cookies.set("current_user_id", "1")
+    response = client.post("/submit-review/2", data={
+        "rating": 10,
+        "comment": "Супер"
+    })
+    assert "Оценката трябва да е между 2 и 6" in response.text
+
 

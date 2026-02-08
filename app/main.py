@@ -1,7 +1,10 @@
 """Main FastAPI application and routes."""
-from typing import Optional, Any
+from typing import Optional
+from pydantic import ValidationError
 import hashlib
+from typing import Optional, Dict, Union, Any
 from datetime import datetime
+
 from fastapi import FastAPI, HTTPException, Depends, Request, Form, Response, Cookie
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -15,11 +18,11 @@ templates = Jinja2Templates(directory="templates")
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Посредник за услуги наблизо - Backend")
+app = FastAPI(title="Частни уроци")
 
 
-def hash_password(password: str) -> str:  # kaloqn taka kaza
-    """Hash the user password using SHA-256."""
+def hash_password(password: str) -> str:
+    """Hash the user password."""
     return hashlib.sha256(password.encode()).hexdigest()
 
 
@@ -28,7 +31,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return hash_password(plain_password) == hashed_password
 
 
-@app.get("/search", response_class=HTMLResponse)
+@app.get("/search", response_class=HTMLResponse, response_model=None)
 def search_web(
     request: Request,
     db: Session = Depends(get_db),
@@ -36,11 +39,11 @@ def search_web(
     category: Optional[str] = None,
     city: Optional[str] = None,
     current_user_id: Optional[str] = Cookie(None)
-) -> Any:
+) -> HTMLResponse:
     """Search for lessons by subject, category, and city with verified teacher filtering."""
     query = db.query(models.Lesson).join(
         models.User, models.Lesson.teacher_id == models.User.id
-    ).filter(models.User.is_verified is True)
+    ).filter(models.User.is_verified == True)
 
     if name:
         query = query.filter(models.Lesson.subject.ilike(f"%{name}%"))
@@ -66,81 +69,9 @@ def search_web(
     })
 
 
-@app.post("/register")
-def register(user: schemas.UserCreate, db: Session = Depends(get_db)) -> Any:
-    """Register a new user via API."""
-    db_user = models.User(email=user.email, password=user.password, role=user.role)
-    db.add(db_user)
-    db.commit()
-    return {"message": "Успешна регистрация!"}
-
-
-@app.post("/bookings")
-def book(data: schemas.BookingCreate, db: Session = Depends(get_db)) -> Any:
-    """Create a new lesson booking via API."""
-    new_booking = models.Booking(
-        client_id=data.client_id,
-        lesson_id=data.lesson_id,
-        appointment_time=data.appointment_time
-    )
-    db.add(new_booking)
-    db.commit()
-    return {"message": "Резервацията е създадена!"}
-
-
-@app.get("/admin/users", response_model=None)
-def list_users(db: Session = Depends(get_db)) -> Any:
-    """List all users for administrative purposes."""
-    return db.query(models.User).all()
-
-
-@app.put("/admin/verify-tutor/{user_id}")
-def verify(user_id: int, db: Session = Depends(get_db)) -> Any:
-    """Verify a tutor by their user ID."""
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if user:
-        user.is_verified = True
-        db.commit()
-        return {"message": "Учителят е верифициран!"}
-    raise HTTPException(status_code=404, detail="Не е намерен")
-
-
-@app.get("/setup")  # za testove beshe
-def setup(db: Session = Depends(get_db)) -> Any:
-    """Reset the database and populate it with initial test data."""
-    db.query(models.Review).delete()
-    db.query(models.Favorite).delete()
-    db.query(models.Booking).delete()
-    db.query(models.Lesson).delete()
-    db.query(models.User).delete()
-
-    tutor1 = models.User(
-        email="ivan.ivanov@example.com",
-        username="ivan_tutor",
-        password=hash_password("123"),  # (парола) крие я
-        role="tutor",
-        first_name="Иван Иванов",
-        address="София",
-        phone="0888111222"
-    )
-    db.add(tutor1)
-    db.commit()
-
-    db.add(models.Lesson(
-        subject="Математика (Анализ)",
-        category="Частни уроци",
-        teacher_name=tutor1.first_name,
-        teacher_id=tutor1.id,
-        price=35.0,
-        latitude=42.69, longitude=23.32
-    ))
-
-    db.commit()
-    return {"message": "Системата е готова с учители с пълни имена!"}
-
 
 @app.put("/users/{user_id}/address")
-def update_address(user_id: int, new_address: str, db: Session = Depends(get_db)) -> Any:
+def update_address(user_id: int, new_address: str, db: Session = Depends(get_db)) -> Dict[str, str]:
     """Update the address for a specific user."""
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -150,22 +81,8 @@ def update_address(user_id: int, new_address: str, db: Session = Depends(get_db)
     return {"message": "Адресът е обновен!"}
 
 
-@app.get("/users/{user_id}/bookings", response_model=None)
-def get_user_bookings(user_id: int, db: Session = Depends(get_db)) -> Any:
-    """Retrieve all bookings associated with a specific client ID."""
-    return db.query(models.Booking).filter(models.Booking.client_id == user_id).all()
-
-
-@app.post("/messages/send")
-def send_message(to_user_id: int, text: str, db: Session = Depends(get_db)) -> Any:
-    """Send a system notification to a specific user."""
-    db.add(models.Notification(user_id=to_user_id, message=text))
-    db.commit()
-    return {"status": "Изпратено!"}
-
-
 @app.get("/register", response_class=HTMLResponse)
-def register_page(request: Request) -> Any:
+def register_page(request: Request) -> HTMLResponse:
     """Render the registration HTML page."""
     return templates.TemplateResponse("register.html", {"request": request})
 
@@ -183,38 +100,54 @@ def register_web(
     address: str = Form(None),
     db: Session = Depends(get_db)
 ) -> Any:
-    """Handle web-based registration form submission and set session cookie."""
-    existing_user = db.query(models.User).filter(models.User.username == username).first()
-    if existing_user:
-        return HTMLResponse(content="<script>alert('Потребителското име е заето!'); "
-                                    "window.history.back();</script>")
-    hashed_pwd = hash_password(password)
+    """Handle registration using Pydantic schemas for validation."""
+    
+    try:
+        user_data = schemas.UserCreate(
+            first_name=first_name,
+            username=username,
+            email=email,
+            password=password,
+            phone=phone,
+            role=role,
+            address=address
+        )
+    except ValidationError as e:
+        error_msg = e.errors()[0]['msg']
+        return HTMLResponse(content=f"<script>alert('{error_msg}'); window.history.back();</script>")
+
+    if db.query(models.User).filter(models.User.username == user_data.username).first():
+        return HTMLResponse(content="<script>alert('Потребителското име е заето!');" \
+        " window.history.back();</script>")
+
     new_user = models.User(
-        first_name=first_name,
-        username=username,
-        email=email,
-        password=hashed_pwd,
-        phone=phone,
+        first_name=user_data.first_name,
+        username=user_data.username,
+        email=user_data.email,
+        password=hash_password(user_data.password),
+        phone=user_data.phone,
         bio=bio,
-        role=role,
-        address=address
+        role=user_data.role,
+        address=user_data.address
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    response = RedirectResponse(url="/profile", status_code=303)
-    response.set_cookie(key="current_user_id", value=str(new_user.id), httponly=True)
-    return response
+    redirect_res = RedirectResponse(url="/profile", status_code=303)
+    redirect_res.set_cookie(key="current_user_id", value=str(new_user.id), httponly=True)
+    return redirect_res
 
 
-@app.get("/", response_class=HTMLResponse)
-def home_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+@app.get("/", response_class=HTMLResponse, response_model=None)
+def home_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> HTMLResponse:
     """Render the home page with active lessons from verified tutors."""
     lessons = db.query(models.Lesson).join(
-        models.User, models.Lesson.teacher_id == models.User.id
-    ).filter(models.User.is_verified is True).filter(models.Lesson.is_active is True).all()
-
+    models.User, models.Lesson.teacher_id == models.User.id
+    ).filter(
+    models.User.is_verified == True,
+    models.Lesson.is_active == True
+    ).all()
     user = None
     if current_user_id:
         user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
@@ -230,7 +163,7 @@ def home_page(request: Request, db: Session = Depends(get_db), current_user_id: 
 
 
 @app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request) -> Any:
+def login_page(request: Request) -> HTMLResponse:
     """Render the login HTML page."""
     return templates.TemplateResponse("login.html", {"request": request})
 
@@ -238,34 +171,37 @@ def login_page(request: Request) -> Any:
 @app.post("/login-web")
 def login_web(
     request: Request,
-    response: Response,
     email: str = Form(...),
     password: str = Form(...),
     db: Session = Depends(get_db)
 ) -> Any:
-    """Authenticate user login from the web form and manage session cookies."""
-    user = db.query(models.User).filter(models.User.email == email).first()
+    """Authenticate user login using schemas."""
+    try:
+        login_data = schemas.UserLogin(email=email, password=password)
+    except ValidationError:
+        return templates.TemplateResponse("login.html", {
+            "request": request, "error": "Невалиден формат на данните."
+        })
+
+    user = db.query(models.User).filter(models.User.email == login_data.email).first()
+    
     if not user or not user.is_active:
         return templates.TemplateResponse("login.html", {
-        "request": request,
-        "error": "Профилът е деактивиран или не съществува."
-    })
+            "request": request, "error": "Профилът не съществува или е деактивиран."
+        })
 
-    if not verify_password(password, user.password):
-        return HTMLResponse(content="<script>alert('Грешен имейл или парола!');"
-                                    "window.location.href='/login';</script>")
-    response = None
-    if user.role == "admin":
-        response = RedirectResponse(url="/admin", status_code=303)
-    else:
-        response = RedirectResponse(url="/profile", status_code=303)
-
-    response.set_cookie(key="current_user_id", value=str(user.id))
-    return response
+    if not verify_password(login_data.password, user.password):
+        return HTMLResponse(content="<script>alert('Грешен имейл или парола!');" \
+        " window.location.href='/login';</script>")
+    
+    url = "/admin" if user.role == "admin" else "/profile"
+    redirect_res = RedirectResponse(url=url, status_code=303)
+    redirect_res.set_cookie(key="current_user_id", value=str(user.id))
+    return redirect_res
 
 
-@app.get("/profile", response_class=HTMLResponse)
-def profile_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+@app.get("/profile", response_class=HTMLResponse, response_model=None)
+def profile_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Union[HTMLResponse, RedirectResponse]:
     """Display the user's personal profile, bookings, and notifications."""
     if not current_user_id:
         return RedirectResponse(url='/login', status_code=303)
@@ -274,11 +210,11 @@ def profile_page(request: Request, db: Session = Depends(get_db), current_user_i
     user = db.query(models.User).filter(models.User.id == user_id).first()
 
     favorite_lessons = db.query(models.Lesson).join(models.Favorite).filter(
-        models.Favorite.user_id == user_id, models.Lesson.is_active is True
+        models.Favorite.user_id == user_id, models.Lesson.is_active == True
     ).all()
 
     notifications = db.query(models.Notification).filter(
-        models.Notification.user_id == user_id, models.Notification.is_read is False
+        models.Notification.user_id == user_id, models.Notification.is_read == False
     ).all()
 
     if user.role == "admin":
@@ -317,8 +253,8 @@ def profile_page(request: Request, db: Session = Depends(get_db), current_user_i
     })
 
 
-@app.get("/edit-profile", response_class=HTMLResponse)
-def edit_profile_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+@app.get("/edit-profile", response_class=HTMLResponse, response_model=None)
+def edit_profile_page(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Union[HTMLResponse, RedirectResponse]:
     """Render the profile editing page."""
     if not current_user_id:
         return RedirectResponse(url='/login', status_code=303)
@@ -332,28 +268,37 @@ def edit_profile_page(request: Request, db: Session = Depends(get_db), current_u
 def update_profile(
     first_name: str = Form(None), phone: str = Form(None), address: str = Form(None),
     bio: str = Form(None), db: Session = Depends(get_db), current_user_id: str = Cookie(None)
-) -> Any:
-    """Update user profile information from form data."""
+) -> RedirectResponse:
     if not current_user_id:
         return RedirectResponse(url='/login', status_code=303)
 
-    user_id = int(current_user_id)
-    user = db.query(models.User).filter(models.User.id == user_id).first()
+    try:
+        updated_data = schemas.UserUpdate(
+            first_name=first_name, phone=phone, address=address, bio=bio
+        )
+    except ValidationError as e:
+        error_msg = e.errors()[0]['msg']
+        return HTMLResponse(content=f"<script>alert('{error_msg}'); window.history.back();</script>")
 
+    user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
     if user:
-        user.first_name, user.phone, user.address = first_name, phone, address
+        user.first_name = updated_data.first_name
+        user.phone = updated_data.phone
+        user.address = updated_data.address
         if user.role == 'tutor':
-            user.bio = bio
+            user.bio = updated_data.bio
         db.commit()
 
     return RedirectResponse(url="/profile", status_code=303)
 
 
-@app.post("/book-lesson/{lesson_id}")
+@app.post("/book-lesson/{lesson_id}", response_model=None)
 def book_lesson(
-    lesson_id: int, appointment_time: str = Form(...), db: Session = Depends(get_db),
+    lesson_id: int, 
+    appointment_time: str = Form(...), 
+    db: Session = Depends(get_db),
     current_user_id: str = Cookie(None)
-) -> Any:
+) -> Union[HTMLResponse, RedirectResponse]:
     """Process a lesson booking request and notify the teacher."""
     if not current_user_id:
         return HTMLResponse(content="<script>alert('Моля, влезте в профила си!'); "
@@ -364,29 +309,34 @@ def book_lesson(
         raise HTTPException(status_code=404, detail="Урокът не е намерен")
 
     if not lesson.is_active:
-        return {"error": "Този урок вече не се предлага."}
+        return HTMLResponse(content="<script>alert('Този урок вече не се предлага.');" \
+        " window.history.back();</script>")
+
     teacher = db.query(models.User).filter(models.User.id == lesson.teacher_id).first()
-    if not teacher.is_verified:
-        return {"error": "Учителят все още не е одобрен от администратор."}
+    if not teacher or not teacher.is_verified:
+        return HTMLResponse(content="<script>alert('Учителят все още не е одобрен от администратор.');" \
+        " window.history.back();</script>")
 
     user_id = int(current_user_id)
-    client = db.query(models.User).filter(models.User.id == user_id).first()
+    client_user = db.query(models.User).filter(models.User.id == user_id).first()
 
     new_booking = models.Booking(
-        client_id=user_id, lesson_id=lesson_id,
-        appointment_time=appointment_time, status="Заявен"
+        client_id=user_id, 
+        lesson_id=lesson_id,
+        appointment_time=appointment_time, 
+        status="Заявен"
     )
     db.add(new_booking)
-
-    msg = f"Имате нова резервация за {lesson.subject} от {client.username}!"
-    db.add(models.Notification(user_id=lesson.teacher_id, message=msg))
+    msg = f"Имате нова резервация за {lesson.subject} от {client_user.username}!"
+    new_notif = models.Notification(user_id=lesson.teacher_id, message=msg)
+    db.add(new_notif)
     db.commit()
 
-    return RedirectResponse(url="/profile", status_code=303)
+    return RedirectResponse(url="/profile?message=booked", status_code=303)
 
 
 @app.post("/confirm-booking/{booking_id}")
-def confirm_booking(booking_id: int, db: Session = Depends(get_db)) -> Any:
+def confirm_booking(booking_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
     """Confirm a lesson booking and update its status."""
     booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
     if booking:
@@ -396,15 +346,15 @@ def confirm_booking(booking_id: int, db: Session = Depends(get_db)) -> Any:
 
 
 @app.get("/logout")
-def logout(response: Response) -> Any:
+def logout() -> RedirectResponse:
     """Log out the user by deleting the session cookie."""
-    response = RedirectResponse(url="/", status_code=303)
-    response.delete_cookie("current_user_id")
-    return response
+    redirect_res = RedirectResponse(url="/", status_code=303)
+    redirect_res.delete_cookie("current_user_id")
+    return redirect_res
 
 
-@app.post("/update-booking/{booking_id}/{new_status}")
-def update_booking(booking_id: int, new_status: str, db: Session = Depends(get_db)) -> Any:
+@app.post("/update-booking/{booking_id}/{new_status}", response_model=None)
+def update_booking(booking_id: int, new_status: str, db: Session = Depends(get_db)) -> Union[HTMLResponse, RedirectResponse]:
     """Update booking status and send notifications if the booking is canceled."""
     booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
 
@@ -417,15 +367,18 @@ def update_booking(booking_id: int, new_status: str, db: Session = Depends(get_d
             db.commit()
             return HTMLResponse(content="<script>alert('Резервацията е отказана успешно.');"
                                         " window.location.href='/profile';</script>")
+        if new_status == "Потвърден":
+            msg = f"Вашият час по {booking.lesson.subject} за {pretty_date} ч. беше ПОТВЪРДЕН!"
+            db.add(models.Notification(user_id=booking.client_id, message=msg))
 
-        booking.status = new_status
-        db.commit()
+    booking.status = new_status
+    db.commit()
     return RedirectResponse(url="/profile", status_code=303)
 
 
-@app.get("/public-profile/{user_id}", response_class=HTMLResponse)
+@app.get("/public-profile/{user_id}", response_class=HTMLResponse, response_model=None)
 def public_profile(request: Request, user_id: int, db: Session = Depends(get_db),
-                   current_user_id: str = Cookie(None)) -> Any:
+                   current_user_id: str = Cookie(None)) -> Union[HTMLResponse, Response]:
     """Display the public profile of a teacher including reviews and lessons."""
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user:
@@ -444,18 +397,18 @@ def public_profile(request: Request, user_id: int, db: Session = Depends(get_db)
 
 
 @app.post("/delete-notification/{notif_id}")
-def delete_notification(notif_id: int, db: Session = Depends(get_db)) -> Any:
+def delete_notification(notif_id: int, db: Session = Depends(get_db)) -> Dict[str, str]:
     """Delete a specific notification from the database."""
     db.query(models.Notification).filter(models.Notification.id == notif_id).delete()
     db.commit()
     return {"status": "success"}
 
 
-@app.get("/add-lesson", response_class=HTMLResponse)
-def add_lesson_page(request: Request, current_user_id: str = Cookie(None), db: Session = Depends(get_db)) -> Any:
+@app.get("/add-lesson", response_class=HTMLResponse, response_model=None)
+def add_lesson_page(request: Request, current_user_id: str = Cookie(None), db: Session = Depends(get_db)) -> Union[HTMLResponse, RedirectResponse]:
     """Render the page for adding a new lesson (tutors only)."""
     if not current_user_id:
-        return HTMLResponse(content="<script>window.location.href='/login';</script>")
+        return RedirectResponse(url='/login')
 
     user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
     if user.role != "tutor":
@@ -469,12 +422,15 @@ def add_lesson_page(request: Request, current_user_id: str = Cookie(None), db: S
 def create_lesson(
     subject: str = Form(...), category: str = Form(...), price: float = Form(...),
     db: Session = Depends(get_db), current_user_id: str = Cookie(None)
-) -> Any:
-    """Create a new lesson entry in the database for the logged-in teacher."""
-    user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
+) -> RedirectResponse:
+    try:
+        lesson_data = schemas.LessonCreate(subject=subject, category=category, price=price)
+    except ValidationError as e:
+        return HTMLResponse(content=f"<script>alert('{e.errors()[0]['msg']}'); window.history.back();</script>")
 
+    user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
     new_lesson = models.Lesson(
-        subject=subject, category=category, price=price,
+        subject=lesson_data.subject, category=lesson_data.category, price=lesson_data.price,
         teacher_id=user.id, teacher_name=user.first_name or user.username,
         latitude=42.69, longitude=23.32
     )
@@ -484,7 +440,7 @@ def create_lesson(
 
 
 @app.post("/favorites")
-def add_to_favorites(lesson_id: int = Form(...), user_id: int = Form(...), db: Session = Depends(get_db)) -> Any:
+def add_to_favorites(lesson_id: int = Form(...), user_id: int = Form(...), db: Session = Depends(get_db)) -> RedirectResponse:
     """Add a lesson to the user's favorite list."""
     existing = db.query(models.Favorite).filter(
         models.Favorite.user_id == user_id, models.Favorite.lesson_id == lesson_id
@@ -498,7 +454,7 @@ def add_to_favorites(lesson_id: int = Form(...), user_id: int = Form(...), db: S
 
 
 @app.post("/remove-favorite/{lesson_id}")
-def remove_favorite(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def remove_favorite(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Dict[str, str]:
     """Remove a lesson from the user's favorite list."""
     if not current_user_id:
         return {"error": "Not logged in"}
@@ -513,34 +469,63 @@ def remove_favorite(lesson_id: int, db: Session = Depends(get_db), current_user_
     return {"status": "success"}
 
 
-@app.post("/submit-review/{teacher_id}")
+@app.post("/submit-review/{teacher_id}", response_model=None)
 def submit_review(
-    teacher_id: int, rating: int = Form(...), comment: str = Form(None),
-    db: Session = Depends(get_db), current_user_id: str = Cookie(None)
-) -> Any:
-    """Submit a rating and comment for a teacher and notify them."""
+    teacher_id: int, 
+    rating: int = Form(...), 
+    comment: str = Form(None),
+    db: Session = Depends(get_db), 
+    current_user_id: str = Cookie(None)
+) -> Union[HTMLResponse, RedirectResponse]:
+    """Submit a rating and comment using ReviewCreate schema for validation."""
+    
     if not current_user_id:
-        return HTMLResponse(content="<script>alert('Трябва да влезете в профила си!'); window.location.href='/login';</script>")
+        return RedirectResponse(url='/login', status_code=303)
+
+    try:
+        review_data = schemas.ReviewCreate(
+            lesson_id=0, 
+            rating=rating, 
+            comment=comment
+        )
+    except ValidationError as e:
+        error_msg = e.errors()[0]['msg']
+        return HTMLResponse(content=f"<script>alert('{error_msg}'); window.history.back();</script>")
 
     user_id = int(current_user_id)
     user = db.query(models.User).filter(models.User.id == user_id).first()
 
     if user.role != "client":
-        return HTMLResponse(content="<script>alert('Само ученици могат да оставят ревюта!'); window.history.back();</script>")
+        return HTMLResponse(content="<script>alert('Само ученици могат да оставят ревюта!');" \
+        " window.history.back();</script>")
+    
     if user_id == teacher_id:
-        return HTMLResponse(content="<script>alert('Не можете да оценявате себе си!'); window.history.back();</script>")
+        return HTMLResponse(content="<script>alert('Не можете да оценявате себе си!'); " \
+        "window.history.back();</script>")
 
-    db.add(models.Review(teacher_id=teacher_id, user_id=user_id, rating=rating, comment=comment))
-    msg = f"Ученикът {user.username} ви остави оценка {rating} ⭐!"
+    new_review = models.Review(
+        teacher_id=teacher_id, 
+        user_id=user_id, 
+        rating=review_data.rating, 
+        comment=review_data.comment
+    )
+    db.add(new_review)
+    
+    msg = f"Ученикът {user.username} ви остави оценка {review_data.rating} ⭐!"
     db.add(models.Notification(user_id=teacher_id, message=msg))
+    
     db.commit()
 
     return RedirectResponse(url=f"/public-profile/{teacher_id}", status_code=303)
 
 
 @app.post("/cancel-booking/{booking_id}")
-def cancel_booking(booking_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
-    """Cancel a booking and notify the relevant party (either teacher or student)."""
+def cancel_booking(
+    booking_id: int, 
+    db: Session = Depends(get_db), 
+    current_user_id: str = Cookie(None)
+) -> RedirectResponse:
+    """Cancel a booking and notify the other party with full details."""
     if not current_user_id:
         return RedirectResponse(url="/login", status_code=303)
 
@@ -549,24 +534,35 @@ def cancel_booking(booking_id: int, db: Session = Depends(get_db), current_user_
         return RedirectResponse(url="/profile", status_code=303)
 
     user_id = int(current_user_id)
-    receiver_id = booking.client_id if user_id == booking.lesson.teacher_id else booking.lesson.teacher_id
-    msg = "Преподавателят отмени часа." if user_id == booking.lesson.teacher_id else "Ученикът отмени часа."
+    
+    subject = booking.lesson.subject
+    pretty_date = booking.appointment_time.replace('T', ' ')
+    teacher_id = booking.lesson.teacher_id
+    client_id = booking.client_id
+    
+    if user_id == teacher_id:
+        receiver_id = client_id
+        msg = f"Преподавателят отмени часа по {subject} за {pretty_date} ч."
+    else:
+        receiver_id = teacher_id
+        client_name = db.query(models.User).filter(models.User.id == user_id).first().username
+        msg = f"Ученикът {client_name} отмени часа по {subject} за {pretty_date} ч."
 
-    db.add(models.Notification(user_id=receiver_id, message=msg))
+    new_notif = models.Notification(user_id=receiver_id, message=msg)
+    db.add(new_notif)
     db.delete(booking)
     db.commit()
 
-    return RedirectResponse(url="/profile", status_code=303)
+    return RedirectResponse(url="/profile?message=cancelled", status_code=303)
 
-
-@app.get("/admin", response_class=HTMLResponse)
-def admin_panel(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+@app.get("/admin", response_class=HTMLResponse, response_model=None)
+def admin_panel(request: Request, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Union[HTMLResponse, RedirectResponse]:
     """Render the admin dashboard with system stats and user management."""
     if not current_user_id:
         return RedirectResponse(url="/login", status_code=303)
 
-    admin = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
-    if not admin or admin.role != "admin":
+    admin_user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
+    if not admin_user or admin_user.role != "admin":
         return HTMLResponse(content="<script>alert('Нямате права!'); window.location.href='/';</script>")
 
     users, reviews, lessons = db.query(models.User).all(), db.query(models.Review).all(), db.query(models.Lesson).all()
@@ -578,30 +574,36 @@ def admin_panel(request: Request, db: Session = Depends(get_db), current_user_id
 
     return templates.TemplateResponse("admin_panel.html", {
         "request": request, "users": users, "reviews": reviews, "lessons": lessons,
-        "admin_name": admin.username, "stats": stats, "transactions": db.query(models.Transaction).all()
+        "admin_name": admin_user.username, "stats": stats, "transactions": db.query(models.Transaction).all()
     })
 
 
 @app.post("/admin/verify-tutor/{user_id}", response_model=None)
-def verify_tutor(user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def verify_tutor(user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Union[Dict[str, str], RedirectResponse]:
     """Approve a tutor's verification request (admin only)."""
-    admin = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
-    if not admin or admin.role != "admin":
+    
+    admin_user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
+    if not admin_user or admin_user.role != "admin":
         return {"error": "Unauthorized"}
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
+    
     if user and user.role == "tutor":
         user.is_verified = True
+        db.query(models.Lesson).filter(
+            models.Lesson.teacher_id == user_id
+        ).update({models.Lesson.is_active: True})
+        
         db.commit()
 
     return RedirectResponse(url="/admin", status_code=303)
 
 
 @app.post("/admin/delete-user/{user_id}", response_model=None)
-def delete_user(user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Union[Dict[str, str], RedirectResponse]:
     """Deactivate a user and their associated lessons (admin only)."""
-    admin = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
-    if not admin or admin.role != "admin":
+    admin_user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
+    if not admin_user or admin_user.role != "admin":
         return {"error": "Unauthorized"}
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -615,17 +617,17 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user_id: st
 
 
 @app.post("/admin/delete-review/{review_id}")
-def delete_review(review_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def delete_review(review_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> RedirectResponse:
     """Remove a review from the system (admin only)."""
-    admin = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
-    if admin and admin.role == "admin":
+    admin_user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
+    if admin_user and admin_user.role == "admin":
         db.query(models.Review).filter(models.Review.id == review_id).delete()
         db.commit()
     return RedirectResponse(url="/admin", status_code=303)
 
 
 @app.post("/admin/delete-lesson/{lesson_id}")
-def delete_lesson(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def delete_lesson(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> RedirectResponse:
     """Deactivate a lesson and cancel future bookings (admin only)."""
     now = datetime.now()
     lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
@@ -644,8 +646,8 @@ def delete_lesson(lesson_id: int, db: Session = Depends(get_db), current_user_id
     return RedirectResponse(url="/admin", status_code=303)
 
 
-@app.get("/make-me-admin/{username}")
-def make_admin(username: str, db: Session = Depends(get_db)) -> Any:
+@app.get("/make-me-admin/{username}")#ами предполагам че не беше много адекватен начен  така да правя админа но работи
+def make_admin(username: str, db: Session = Depends(get_db)) -> Dict[str, str]:
     """Grant admin privileges to a user (testing only)."""
     user = db.query(models.User).filter(models.User.username == username).first()
     if user:
@@ -655,9 +657,9 @@ def make_admin(username: str, db: Session = Depends(get_db)) -> Any:
     return {"error": "Потребителят не е намерен"}
 
 
-@app.get("/checkout/{lesson_id}", response_class=HTMLResponse)
+@app.get("/checkout/{lesson_id}", response_class=HTMLResponse, response_model=None)
 def checkout_page(lesson_id: int, request: Request, db: Session = Depends(get_db),
-                  current_user_id: str = Cookie(None)) -> Any:
+                  current_user_id: str = Cookie(None)) -> Union[HTMLResponse, RedirectResponse]:
     """Render the lesson checkout page."""
     if not current_user_id:
         return RedirectResponse(url="/login", status_code=303)
@@ -670,37 +672,46 @@ def checkout_page(lesson_id: int, request: Request, db: Session = Depends(get_db
 
 
 @app.post("/process-payment/{lesson_id}")
-def process_payment(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def process_payment(lesson_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> RedirectResponse:
     """Simulate payment processing and record a new transaction."""
     if not current_user_id:
         return RedirectResponse(url="/login", status_code=303)
 
-    user_id, lesson = int(current_user_id), db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
+    user_id_int = int(current_user_id)
+    lesson = db.query(models.Lesson).filter(models.Lesson.id == lesson_id).first()
     booking = db.query(models.Booking).filter(
-        models.Booking.lesson_id == lesson_id, models.Booking.client_id == user_id, models.Booking.status == "Потвърден"
-    ).order_by(models.Booking.id.desc()).first()
+        models.Booking.lesson_id == lesson_id, models.Booking.client_id == user_id_int,
+          models.Booking.status == "Потвърден"
+    ).first()
 
-    if booking:
-        booking.status = "Платен"
+    if not booking:
+        return HTMLResponse("<script>alert('Няма потвърдена резервация за плащане!'); " \
+        "window.location.href='/profile';</script>")
+
+    booking.status = "Платен"
 
     db.add(models.Transaction(
-        client_id=user_id, teacher_id=lesson.teacher_id, lesson_id=lesson.id,
-        amount=lesson.price, status="completed", payment_method="Карта (симулация)"
+        client_id=user_id_int, teacher_id=lesson.teacher_id, lesson_id=lesson.id,
+        amount=lesson.price, status="completed", payment_method="Карта"
     ))
     db.commit()
     return RedirectResponse(url=f"/profile?message=success&paid_id={lesson_id}", status_code=303)
 
 
 @app.post("/admin/restore-user/{user_id}", response_model=None)
-def restore_user(user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Any:
+def restore_user(user_id: int, db: Session = Depends(get_db), current_user_id: str = Cookie(None)) -> Union[Dict[str, str], RedirectResponse]:
     """Restore a deactivated user account (admin only)."""
-    admin = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
-    if not admin or admin.role != "admin":
+    admin_user = db.query(models.User).filter(models.User.id == int(current_user_id)).first()
+    if not admin_user or admin_user.role != "admin":
         return {"error": "Unauthorized"}
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user:
         user.is_active = True
+        db.query(models.Lesson).filter(
+            models.Lesson.teacher_id == user_id
+        ).update({models.Lesson.is_active: True})
+        
         db.commit()
 
     return RedirectResponse(url="/admin", status_code=303)
